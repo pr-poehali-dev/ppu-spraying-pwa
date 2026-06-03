@@ -1,14 +1,19 @@
 import { useState } from 'react';
-import { MOCK_USERS, User } from '@/data/mockData';
 
 interface LoginScreenProps {
-  onLogin: (user: User) => void;
+  onLogin: (phone: string, password: string) => Promise<string | null>;
 }
+
+const DEMO_USERS = [
+  { name: 'Алексей Петров', phone: '+79001234567', role: 'manager' as const },
+  { name: 'Иван Смирнов', phone: '+79007654321', role: 'foreman' as const },
+];
 
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
   const [phone, setPhone] = useState('+7 (');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   const handlePhoneChange = (val: string) => {
     let digits = val.replace(/\D/g, '');
@@ -23,22 +28,21 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     setPhone(formatted);
   };
 
-  const handleLogin = () => {
-    const cleanPhone = phone.replace(/\D/g, '');
-    const user = MOCK_USERS.find(u => u.phone.replace(/\D/g, '') === cleanPhone);
-    if (!user) { setError('Пользователь не найден'); return; }
-    if (password !== '1234') { setError('Неверный пароль'); return; }
-    onLogin(user);
+  const handleLogin = async () => {
+    if (loading) return;
+    setLoading(true);
+    setError('');
+    const err = await onLogin(phone, password);
+    if (err) setError(err);
+    setLoading(false);
   };
 
   return (
     <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background relative overflow-hidden" translate="no">
-      {/* Background glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-neon/5 blur-[80px] pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full bg-blue-500/5 blur-[60px] pointer-events-none" />
 
       <div className="w-full max-w-sm animate-fade-in">
-        {/* Logo */}
         <div className="text-center mb-10">
           <div className="w-16 h-16 rounded-3xl bg-gradient-to-br from-neon/20 to-neon/5 border border-neon/20 flex items-center justify-center mx-auto mb-4">
             <span className="text-2xl">🏗️</span>
@@ -47,7 +51,6 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           <p className="text-muted-foreground text-sm mt-1">Управление заказами на напыление</p>
         </div>
 
-        {/* Form */}
         <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5">Номер телефона</label>
@@ -77,19 +80,21 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
           <button
             onClick={handleLogin}
-            className="w-full neon-bg rounded-2xl py-4 text-sm font-bold mt-2 hover-scale transition-all"
+            disabled={loading}
+            className="w-full neon-bg rounded-2xl py-4 text-sm font-bold mt-2 hover-scale transition-all disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            Войти
+            {loading ? (
+              <div className="w-4 h-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />
+            ) : 'Войти'}
           </button>
         </div>
 
-        {/* Demo hints */}
         <div className="mt-6 p-4 rounded-2xl bg-white/3 border border-white/6">
           <p className="text-xs text-muted-foreground mb-2 font-medium">Демо-аккаунты (пароль: 1234):</p>
           <div className="space-y-1.5">
-            {MOCK_USERS.map(u => (
+            {DEMO_USERS.map(u => (
               <button
-                key={u.id}
+                key={u.phone}
                 onClick={() => { setPhone(u.phone); setPassword('1234'); setError(''); }}
                 className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/5 transition-colors text-left"
               >

@@ -1,0 +1,19 @@
+{
+  "name": "ППУ CRM",
+  "short_name": "ППУ CRM",
+  "description": "Управление заказами на напыление полиуретановой пены",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0d0d0d",
+  "theme_color": "#0d0d0d",
+  "orientation": "portrait",
+  "lang": "ru",
+  "icons": [
+    {
+      "src": "https://cdn.poehali.dev/projects/92e9f617-9273-4621-9fd6-d0d7154b3c64/files/581068c6-5248-4ae9-b01e-84fef0042658.jpg",
+      "sizes": "512x512",
+      "type": "image/jpeg",
+      "purpose": "any maskable"
+    }
+  ]
+}

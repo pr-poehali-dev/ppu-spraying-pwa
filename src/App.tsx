@@ -1,5 +1,9 @@
-import { useState, useCallback } from 'react';
-import { Order, User, Settings, MOCK_ORDERS, DEFAULT_SETTINGS } from '@/data/mockData';
+import { useState, useCallback, useEffect } from 'react';
+import { Order, User, Settings, DEFAULT_SETTINGS } from '@/data/mockData';
+import {
+  apiLogin, apiGetOrders, apiCreateOrder, apiUpdateOrder,
+  apiGetSettings, apiSaveSettings
+} from '@/api/client';
 import LoginScreen from '@/components/LoginScreen';
 import CalendarView from '@/components/CalendarView';
 import JournalView from '@/components/JournalView';
@@ -18,19 +22,61 @@ const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'settings', label: 'Настройки', icon: 'Settings' },
 ];
 
+const SESSION_KEY = 'ppu_session';
+
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
+  });
   const [tab, setTab] = useState<Tab>('calendar');
-  const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
+  const [loading, setLoading] = useState(false);
+  const [syncing, setSyncing] = useState(false);
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [formDate, setFormDate] = useState('');
 
-  const handleLogin = (u: User) => setUser(u);
-  const handleLogout = () => setUser(null);
+  // Загрузка данных после входа
+  useEffect(() => {
+    if (!user) return;
+    setLoading(true);
+    Promise.all([apiGetOrders(), apiGetSettings()])
+      .then(([ords, sets]) => {
+        setOrders(ords);
+        setSettings(sets);
+      })
+      .catch(console.error)
+      .finally(() => setLoading(false));
+  }, [user]);
+
+  // Polling каждые 15 сек для синхронизации
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => {
+      apiGetOrders().then(setOrders).catch(() => {});
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleLogin = useCallback(async (phone: string, password: string): Promise<string | null> => {
+    try {
+      const { user: u } = await apiLogin(phone, password);
+      localStorage.setItem(SESSION_KEY, JSON.stringify(u));
+      setUser(u);
+      return null;
+    } catch (e: unknown) {
+      return e instanceof Error ? e.message : 'Ошибка входа';
+    }
+  }, []);
+
+  const handleLogout = () => {
+    localStorage.removeItem(SESSION_KEY);
+    setUser(null);
+    setOrders([]);
+  };
 
   const handleCardClick = useCallback((order: Order) => {
     setSelectedOrder(order);
@@ -47,38 +93,42 @@ export default function App() {
     setShowForm(true);
   }, []);
 
-  const handleComplete = useCallback((orderId: string, actualVolume: number) => {
-    setOrders(prev => prev.map(o => {
-      if (o.id !== orderId) return o;
-      const total = actualVolume * o.price_per_m2;
-      const salary = actualVolume * o.crew_rate;
-      return {
-        ...o,
-        status: 'completed' as const,
+  const handleComplete = useCallback(async (orderId: string, actualVolume: number) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    setSyncing(true);
+    try {
+      const updated = await apiUpdateOrder(orderId, {
+        ...order,
+        status: 'completed',
         actual_volume_m2: actualVolume,
-        total_amount: total,
-        crew_salary: salary,
-      };
-    }));
-  }, []);
+      });
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      setSelectedOrder(null);
+    } catch (e) { console.error(e); }
+    finally { setSyncing(false); }
+  }, [orders]);
 
-  const handleSaveOrder = useCallback((data: Partial<Order>) => {
-    if (editOrder) {
-      setOrders(prev => prev.map(o => o.id === editOrder.id ? { ...o, ...data } as Order : o));
-    } else {
-      const newOrder: Order = {
-        id: Date.now().toString(),
-        actual_volume_m2: null,
-        status: 'planned',
-        created_at: new Date().toISOString(),
-        created_by: user?.name || '',
-        ...data,
-      } as Order;
-      setOrders(prev => [...prev, newOrder]);
-    }
-    setShowForm(false);
-    setEditOrder(null);
+  const handleSaveOrder = useCallback(async (data: Partial<Order>) => {
+    setSyncing(true);
+    try {
+      if (editOrder) {
+        const updated = await apiUpdateOrder(editOrder.id, { ...editOrder, ...data });
+        setOrders(prev => prev.map(o => o.id === editOrder.id ? updated : o));
+      } else {
+        const created = await apiCreateOrder({ ...data, created_by: user?.name || '' });
+        setOrders(prev => [created, ...prev]);
+      }
+      setShowForm(false);
+      setEditOrder(null);
+    } catch (e) { console.error(e); }
+    finally { setSyncing(false); }
   }, [editOrder, user]);
+
+  const handleSaveSettings = useCallback(async (s: Settings) => {
+    setSettings(s);
+    try { await apiSaveSettings(s); } catch (e) { console.error(e); }
+  }, []);
 
   if (!user) {
     return <LoginScreen onLogin={handleLogin} />;
@@ -95,7 +145,10 @@ export default function App() {
               ППУ <span className="neon-text">CRM</span>
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-3">
+            {syncing && (
+              <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
+            )}
             <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
               user.role === 'manager'
                 ? 'bg-neon/10 text-neon'
@@ -107,37 +160,33 @@ export default function App() {
         </div>
       </div>
 
+      {/* Loading */}
+      {loading && (
+        <div className="absolute inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3">
+            <div className="w-8 h-8 rounded-full border-2 border-neon border-t-transparent animate-spin" />
+            <span className="text-sm text-muted-foreground">Загрузка...</span>
+          </div>
+        </div>
+      )}
+
       {/* Main content */}
       <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'calc(100vh - 112px)' }}>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'calendar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <CalendarView
-            orders={orders}
-            role={user.role}
-            onCardClick={handleCardClick}
-            onAddOrder={handleAddOrder}
-          />
+          <CalendarView orders={orders} role={user.role} onCardClick={handleCardClick} onAddOrder={handleAddOrder} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'journal' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <JournalView
-            orders={orders}
-            role={user.role}
-            onOrderClick={handleCardClick}
-          />
+          <JournalView orders={orders} role={user.role} onOrderClick={handleCardClick} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'dashboard' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
           <DashboardView orders={orders} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'settings' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <SettingsView
-            settings={settings}
-            currentUser={user}
-            onSaveSettings={setSettings}
-            onLogout={handleLogout}
-          />
+          <SettingsView settings={settings} currentUser={user} onSaveSettings={handleSaveSettings} onLogout={handleLogout} />
         </div>
       </div>
 
-      {/* FAB — manager only on calendar */}
+      {/* FAB */}
       {user.role === 'manager' && tab === 'calendar' && (
         <button
           onClick={() => handleAddOrder(new Date().toISOString().split('T')[0])}
@@ -162,9 +211,7 @@ export default function App() {
                 }`}
               >
                 <div className={`relative transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
-                  {isActive && (
-                    <div className="absolute inset-0 -m-1 rounded-lg bg-neon/10" />
-                  )}
+                  {isActive && <div className="absolute inset-0 -m-1 rounded-lg bg-neon/10" />}
                   <Icon name={item.icon as Parameters<typeof Icon>[0]['name']} size={20} />
                 </div>
                 <span className={`text-[10px] font-medium transition-all ${isActive ? 'neon-text' : ''}`}>
@@ -187,7 +234,6 @@ export default function App() {
           onEdit={user.role === 'manager' ? handleEditOrder : undefined}
         />
       )}
-
       {showForm && (
         <OrderForm
           order={editOrder}
