@@ -32,7 +32,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background relative overflow-hidden">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background relative overflow-hidden" translate="no">
       {/* Background glow */}
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-neon/5 blur-[80px] pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full bg-blue-500/5 blur-[60px] pointer-events-none" />

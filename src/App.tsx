@@ -85,7 +85,7 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col font-golos">
+    <div className="min-h-screen bg-background flex flex-col font-golos" translate="no">
       {/* Header */}
       <div className="sticky top-0 z-30 bg-background/80 backdrop-blur-xl border-b border-white/6">
         <div className="flex items-center justify-between px-4 py-3">

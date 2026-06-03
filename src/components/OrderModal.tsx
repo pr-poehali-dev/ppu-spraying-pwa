@@ -31,7 +31,7 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit }:
     >
       <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" />
       <div
-        className="relative w-full max-w-lg bg-[#111] rounded-t-3xl p-6 animate-slide-up border-t border-white/10"
+        className="relative w-full max-w-lg bg-[#111] rounded-t-3xl p-6 animate-slide-up border-t border-white/10" translate="no"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-5">
