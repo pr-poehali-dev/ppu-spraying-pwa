@@ -125,6 +125,11 @@ export default function App() {
     finally { setSyncing(false); }
   }, [editOrder, user]);
 
+  const handlePhotosChange = useCallback((orderId: string, photos: string[]) => {
+    setOrders(prev => prev.map(o => o.id === orderId ? { ...o, photos } : o));
+    setSelectedOrder(prev => prev?.id === orderId ? { ...prev, photos } : prev);
+  }, []);
+
   const handleSaveSettings = useCallback(async (s: Settings) => {
     setSettings(s);
     try { await apiSaveSettings(s); } catch (e) { console.error(e); }
@@ -232,6 +237,7 @@ export default function App() {
           onClose={() => setSelectedOrder(null)}
           onComplete={handleComplete}
           onEdit={user.role === 'manager' ? handleEditOrder : undefined}
+          onPhotosChange={handlePhotosChange}
         />
       )}
       {showForm && (

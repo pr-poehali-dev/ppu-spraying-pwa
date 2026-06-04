@@ -36,7 +36,7 @@ def handler(event: dict, context) -> dict:
 
         cols = ["id","date","customer_name","customer_phone","address",
                 "planned_volume_m2","actual_volume_m2","material","price_per_m2",
-                "total_amount","crew_rate","crew_salary","status","created_at","created_by"]
+                "total_amount","crew_rate","crew_salary","status","created_at","created_by","photos"]
 
         # GET /orders
         if method == "GET":

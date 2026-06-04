@@ -18,6 +18,7 @@ export interface Order {
   status: Status;
   created_at: string;
   created_by: string;
+  photos: string[];
 }
 
 export interface Settings {
@@ -58,6 +59,7 @@ export const MOCK_ORDERS: Order[] = [
     status: 'planned',
     created_at: new Date().toISOString(),
     created_by: 'Алексей Петров',
+    photos: [],
   },
   {
     id: '2',
@@ -75,6 +77,7 @@ export const MOCK_ORDERS: Order[] = [
     status: 'completed',
     created_at: new Date().toISOString(),
     created_by: 'Алексей Петров',
+    photos: [],
   },
   {
     id: '3',

@@ -4,6 +4,7 @@ const URLS = {
   auth: 'https://functions.poehali.dev/08f9c7c4-f54a-488e-abb7-2a86f17e7c4a',
   settings: 'https://functions.poehali.dev/6dba5a64-4b75-431a-977b-e28bab6b26e1',
   orders: 'https://functions.poehali.dev/d82df73f-0c29-4c7d-96ed-0c54bc2f8b9d',
+  uploadPhoto: 'https://functions.poehali.dev/4e40e4f1-0d92-4dbb-895f-d2125d427edc',
 };
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
@@ -52,6 +53,21 @@ export async function apiUpdateOrder(id: string, data: Partial<Order>): Promise<
 
 export async function apiDeleteOrder(id: string): Promise<void> {
   return req(`${URLS.orders}/${id}`, { method: 'DELETE' });
+}
+
+// PHOTOS
+export async function apiUploadPhoto(orderId: string, base64: string, contentType: string): Promise<{ url: string; photos: string[] }> {
+  return req(URLS.uploadPhoto, {
+    method: 'POST',
+    body: JSON.stringify({ order_id: orderId, image: base64, content_type: contentType }),
+  });
+}
+
+export async function apiDeletePhoto(orderId: string, url: string): Promise<{ photos: string[] }> {
+  return req(URLS.uploadPhoto, {
+    method: 'DELETE',
+    body: JSON.stringify({ order_id: orderId, url }),
+  });
 }
 
 // SETTINGS
