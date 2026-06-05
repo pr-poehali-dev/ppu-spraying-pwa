@@ -40,6 +40,9 @@ def handler(event: dict, context) -> dict:
         path = event.get("path", "/")
         body = json.loads(event.get("body") or "{}")
         params = event.get("queryStringParameters") or {}
+        # Поддержка метода через тело запроса для обхода ограничений
+        if method == "POST" and body.get("_method"):
+            method = body["_method"]
 
         cols = ["id","date","customer_name","customer_phone","address",
                 "planned_volume_m2","actual_volume_m2","material","price_per_m2",
@@ -80,10 +83,9 @@ def handler(event: dict, context) -> dict:
             conn.commit()
             return {"statusCode": 200, "headers": CORS, "body": json.dumps(row_to_order(row, cols))}
 
-        # PUT /orders/{id}
+        # PUT /orders
         if method == "PUT":
-            parts = path.rstrip("/").split("/")
-            order_id = parts[-1]
+            order_id = body.get("id") or path.rstrip("/").split("/")[-1]
             o = body
 
             if o.get("status") == "completed" and o.get("actual_volume_m2"):
@@ -119,10 +121,9 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "Not found"})}
             return {"statusCode": 200, "headers": CORS, "body": json.dumps(row_to_order(row, cols))}
 
-        # DELETE /orders/{id}
+        # DELETE /orders
         if method == "DELETE":
-            parts = path.rstrip("/").split("/")
-            order_id = parts[-1]
+            order_id = body.get("id") or path.rstrip("/").split("/")[-1]
             cur.execute(f"DELETE FROM {SCHEMA}.orders WHERE id=%s", (order_id,))
             conn.commit()
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}

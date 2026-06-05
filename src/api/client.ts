@@ -45,14 +45,17 @@ export async function apiCreateOrder(order: Partial<Order>): Promise<Order> {
 }
 
 export async function apiUpdateOrder(id: string, data: Partial<Order>): Promise<Order> {
-  return req<Order>(`${URLS.orders}/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
+  return req<Order>(URLS.orders, {
+    method: 'POST',
+    body: JSON.stringify({ _method: 'PUT', id, ...data }),
   });
 }
 
 export async function apiDeleteOrder(id: string): Promise<void> {
-  return req(`${URLS.orders}/${id}`, { method: 'DELETE' });
+  return req(URLS.orders, {
+    method: 'POST',
+    body: JSON.stringify({ _method: 'DELETE', id }),
+  });
 }
 
 // PHOTOS
