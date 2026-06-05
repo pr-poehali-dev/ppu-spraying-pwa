@@ -88,7 +88,14 @@ def handler(event: dict, context) -> dict:
             order_id = body.get("id") or path.rstrip("/").split("/")[-1]
             o = body
 
-            if o.get("status") == "completed" and o.get("actual_volume_m2"):
+            if o.get("status") == "planned":
+                cur.execute(
+                    f"""UPDATE {SCHEMA}.orders
+                        SET status='planned', actual_volume_m2=NULL
+                        WHERE id=%s RETURNING {','.join(cols)}""",
+                    (order_id,)
+                )
+            elif o.get("status") == "completed" and o.get("actual_volume_m2"):
                 actual = float(o["actual_volume_m2"])
                 price = float(o.get("price_per_m2") or 0)
                 crew_rate = float(o.get("crew_rate") or 70)
