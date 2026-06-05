@@ -109,6 +109,13 @@ export default function JournalView({ orders, role, onOrderClick }: JournalViewP
                   <span className="truncate">{order.address}</span>
                 </div>
 
+                {order.description && (
+                  <div className="flex items-start gap-2 text-xs text-muted-foreground mb-2">
+                    <Icon name="FileText" size={12} className="shrink-0 mt-0.5" />
+                    <span className="line-clamp-2">{order.description}</span>
+                  </div>
+                )}
+
                 <div className="flex items-center gap-2">
                   <span className={`text-xs rounded-lg px-2 py-1 ${
                     order.material === 'polimochevina'
