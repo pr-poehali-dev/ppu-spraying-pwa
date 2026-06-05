@@ -52,21 +52,27 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
 
     setError('');
     setSaving(true);
-    const ok = await onSave({
-      ...order,
-      date: form.date,
-      customer_name: form.customer_name,
-      customer_phone: form.customer_phone,
-      address: form.address,
-      planned_volume_m2: volume,
-      material: form.material,
-      price_per_m2: price,
-      total_amount: totalAmount,
-      crew_rate: crewRate,
-      crew_salary: crewSalary,
-      status: order?.status || 'planned',
-    });
-    if (!ok) {
+    try {
+      const ok = await onSave({
+        ...order,
+        date: form.date,
+        customer_name: form.customer_name,
+        customer_phone: form.customer_phone,
+        address: form.address,
+        planned_volume_m2: volume,
+        material: form.material,
+        price_per_m2: price,
+        total_amount: totalAmount,
+        crew_rate: crewRate,
+        crew_salary: crewSalary,
+        status: order?.status || 'planned',
+      });
+      if (!ok) {
+        setError('Ошибка при сохранении. Попробуйте ещё раз.');
+        setSaving(false);
+      }
+    } catch (e) {
+      console.error('[OrderForm] save error:', e);
       setError('Ошибка при сохранении. Попробуйте ещё раз.');
       setSaving(false);
     }

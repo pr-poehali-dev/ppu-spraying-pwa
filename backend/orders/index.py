@@ -12,13 +12,20 @@ CORS = {
 }
 
 def row_to_order(row, cols):
-    order = dict(zip(cols, row))
-    for k, v in order.items():
+    import decimal
+    raw = dict(zip(cols, row))
+    order = {}
+    for k, v in raw.items():
         if isinstance(v, date):
             order[k] = v.isoformat()
-        elif hasattr(v, '__float__'):
+        elif isinstance(v, decimal.Decimal):
             order[k] = float(v)
-    order['id'] = str(order['id'])
+        elif k == 'id':
+            order[k] = str(v)
+        elif k == 'photos':
+            order[k] = v if isinstance(v, list) else []
+        else:
+            order[k] = v
     return order
 
 def handler(event: dict, context) -> dict:
@@ -53,9 +60,11 @@ def handler(event: dict, context) -> dict:
         # POST /orders
         if method == "POST":
             o = body
-            crew_rate = float(o.get("crew_rate", 70))
-            planned = float(o.get("planned_volume_m2", 0))
-            price = float(o.get("price_per_m2", 0))
+            if not o.get("date") or not o.get("customer_name") or not o.get("address"):
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Заполните обязательные поля"})}
+            crew_rate = float(o.get("crew_rate") or 70)
+            planned = float(o.get("planned_volume_m2") or 0)
+            price = float(o.get("price_per_m2") or 0)
             total = planned * price
             salary = planned * crew_rate
             cur.execute(
@@ -64,8 +73,8 @@ def handler(event: dict, context) -> dict:
                      actual_volume_m2,material,price_per_m2,total_amount,crew_rate,crew_salary,status,created_by)
                     VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'planned',%s)
                     RETURNING {','.join(cols)}""",
-                (o["date"], o["customer_name"], o["customer_phone"], o["address"],
-                 planned, None, o["material"], price, total, crew_rate, salary, o.get("created_by",""))
+                (o["date"], o["customer_name"], o.get("customer_phone",""), o["address"],
+                 planned, None, o.get("material","pena"), price, total, crew_rate, salary, o.get("created_by",""))
             )
             row = cur.fetchone()
             conn.commit()
@@ -79,8 +88,8 @@ def handler(event: dict, context) -> dict:
 
             if o.get("status") == "completed" and o.get("actual_volume_m2"):
                 actual = float(o["actual_volume_m2"])
-                price = float(o.get("price_per_m2", 0))
-                crew_rate = float(o.get("crew_rate", 70))
+                price = float(o.get("price_per_m2") or 0)
+                crew_rate = float(o.get("crew_rate") or 70)
                 total = actual * price
                 salary = actual * crew_rate
                 cur.execute(
@@ -90,9 +99,9 @@ def handler(event: dict, context) -> dict:
                     (actual, total, salary, order_id)
                 )
             else:
-                planned = float(o.get("planned_volume_m2", 0))
-                price = float(o.get("price_per_m2", 0))
-                crew_rate = float(o.get("crew_rate", 70))
+                planned = float(o.get("planned_volume_m2") or 0)
+                price = float(o.get("price_per_m2") or 0)
+                crew_rate = float(o.get("crew_rate") or 70)
                 total = planned * price
                 salary = planned * crew_rate
                 cur.execute(
@@ -101,8 +110,8 @@ def handler(event: dict, context) -> dict:
                             planned_volume_m2=%s,material=%s,price_per_m2=%s,
                             total_amount=%s,crew_rate=%s,crew_salary=%s
                         WHERE id=%s RETURNING {','.join(cols)}""",
-                    (o["date"], o["customer_name"], o["customer_phone"], o["address"],
-                     planned, o["material"], price, total, crew_rate, salary, order_id)
+                    (o.get("date"), o.get("customer_name"), o.get("customer_phone",""), o.get("address",""),
+                     planned, o.get("material","pena"), price, total, crew_rate, salary, order_id)
                 )
             row = cur.fetchone()
             conn.commit()
