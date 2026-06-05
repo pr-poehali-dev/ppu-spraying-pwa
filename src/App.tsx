@@ -104,6 +104,24 @@ export default function App() {
     }
   }, [editOrder]);
 
+  const handleReopenOrder = useCallback(async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
+    setSyncing(true);
+    try {
+      const updated = await apiUpdateOrder(orderId, {
+        status: 'planned',
+        date: order.date, customer_name: order.customer_name,
+        customer_phone: order.customer_phone, address: order.address,
+        planned_volume_m2: order.planned_volume_m2, material: order.material,
+        price_per_m2: order.price_per_m2, crew_rate: order.crew_rate,
+      });
+      setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
+      setSelectedOrder(updated);
+    } catch (e) { console.error(e); }
+    finally { setSyncing(false); }
+  }, [orders]);
+
   const handleDeleteOrder = useCallback(async (orderId: string) => {
     if (!window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
     setSyncing(true);
@@ -215,6 +233,7 @@ export default function App() {
           onComplete={handleComplete}
           onEdit={handleEditOrder}
           onDelete={handleDeleteOrder}
+          onReopen={handleReopenOrder}
           onPhotosChange={handlePhotosChange}
         />
       )}

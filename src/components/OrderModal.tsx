@@ -19,10 +19,11 @@ interface OrderModalProps {
   onComplete: (orderId: string, actualVolume: number) => Promise<void> | void;
   onEdit?: (order: Order) => void;
   onDelete?: (orderId: string) => void;
+  onReopen?: (orderId: string) => void;
   onPhotosChange?: (orderId: string, photos: string[]) => void;
 }
 
-export default function OrderModal({ order, role, onClose, onComplete, onEdit, onDelete, onPhotosChange }: OrderModalProps) {
+export default function OrderModal({ order, role, onClose, onComplete, onEdit, onDelete, onReopen, onPhotosChange }: OrderModalProps) {
   const [actualVolume, setActualVolume] = useState<string>(
     order.actual_volume_m2?.toString() || order.planned_volume_m2.toString()
   );
@@ -30,6 +31,7 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const isCompleted = order.status === 'completed';
 
   const [completing, setCompleting] = useState(false);
@@ -157,22 +159,40 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
                 <span className="text-xs text-muted-foreground font-medium">
                   Фото объекта {photos.length > 0 && `(${photos.length})`}
                 </span>
-                <button
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={uploading}
-                  className="flex items-center gap-1.5 text-xs text-neon hover:opacity-80 transition-opacity disabled:opacity-40"
-                >
-                  {uploading
-                    ? <div className="w-3.5 h-3.5 rounded-full border border-neon border-t-transparent animate-spin" />
-                    : <Icon name="Camera" size={14} />
-                  }
-                  {uploading ? 'Загрузка...' : 'Добавить фото'}
-                </button>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 text-xs text-neon hover:opacity-80 transition-opacity disabled:opacity-40"
+                  >
+                    {uploading
+                      ? <div className="w-3.5 h-3.5 rounded-full border border-neon border-t-transparent animate-spin" />
+                      : <Icon name="Camera" size={14} />
+                    }
+                    {uploading ? 'Загрузка...' : 'Камера'}
+                  </button>
+                  <button
+                    onClick={() => galleryInputRef.current?.click()}
+                    disabled={uploading}
+                    className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-white transition-colors disabled:opacity-40"
+                  >
+                    <Icon name="Image" size={14} />
+                    Галерея
+                  </button>
+                </div>
                 <input
                   ref={fileInputRef}
                   type="file"
                   accept="image/*"
                   capture="environment"
+                  multiple
+                  className="hidden"
+                  onChange={handleFileChange}
+                />
+                <input
+                  ref={galleryInputRef}
+                  type="file"
+                  accept="image/*"
                   multiple
                   className="hidden"
                   onChange={handleFileChange}
@@ -237,6 +257,15 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
                   }
                 </button>
               </div>
+            )}
+
+            {isCompleted && role === 'manager' && onReopen && (
+              <button
+                onClick={() => onReopen(order.id)}
+                className="w-full bg-white/10 rounded-xl py-3.5 text-sm font-medium hover:bg-white/15 transition-colors"
+              >
+                Вернуть в работу
+              </button>
             )}
 
             {role === 'manager' && onEdit && (
