@@ -54,7 +54,6 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
     setSaving(true);
     try {
       const ok = await onSave({
-        ...order,
         date: form.date,
         customer_name: form.customer_name,
         customer_phone: form.customer_phone,

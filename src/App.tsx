@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { Order, Settings, DEFAULT_SETTINGS } from '@/data/mockData';
 import {
-  apiGetOrders, apiCreateOrder, apiUpdateOrder,
+  apiGetOrders, apiCreateOrder, apiUpdateOrder, apiDeleteOrder,
   apiGetSettings, apiSaveSettings
 } from '@/api/client';
 import CalendarView from '@/components/CalendarView';
@@ -87,7 +87,7 @@ export default function App() {
     setSyncing(true);
     try {
       if (editOrder) {
-        const updated = await apiUpdateOrder(editOrder.id, { ...editOrder, ...data });
+        const updated = await apiUpdateOrder(editOrder.id, data);
         setOrders(prev => prev.map(o => o.id === editOrder.id ? updated : o));
       } else {
         const created = await apiCreateOrder({ ...data, created_by: '' });
@@ -103,6 +103,17 @@ export default function App() {
       setSyncing(false);
     }
   }, [editOrder]);
+
+  const handleDeleteOrder = useCallback(async (orderId: string) => {
+    if (!window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
+    setSyncing(true);
+    try {
+      await apiDeleteOrder(orderId);
+      setOrders(prev => prev.filter(o => o.id !== orderId));
+      setSelectedOrder(null);
+    } catch (e) { console.error(e); }
+    finally { setSyncing(false); }
+  }, []);
 
   const handlePhotosChange = useCallback((orderId: string, photos: string[]) => {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, photos } : o));
@@ -203,6 +214,7 @@ export default function App() {
           onClose={() => setSelectedOrder(null)}
           onComplete={handleComplete}
           onEdit={handleEditOrder}
+          onDelete={handleDeleteOrder}
           onPhotosChange={handlePhotosChange}
         />
       )}

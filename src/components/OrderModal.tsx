@@ -18,10 +18,11 @@ interface OrderModalProps {
   onClose: () => void;
   onComplete: (orderId: string, actualVolume: number) => Promise<void> | void;
   onEdit?: (order: Order) => void;
+  onDelete?: (orderId: string) => void;
   onPhotosChange?: (orderId: string, photos: string[]) => void;
 }
 
-export default function OrderModal({ order, role, onClose, onComplete, onEdit, onPhotosChange }: OrderModalProps) {
+export default function OrderModal({ order, role, onClose, onComplete, onEdit, onDelete, onPhotosChange }: OrderModalProps) {
   const [actualVolume, setActualVolume] = useState<string>(
     order.actual_volume_m2?.toString() || order.planned_volume_m2.toString()
   );
@@ -238,12 +239,21 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
               </div>
             )}
 
-            {isCompleted && role === 'manager' && onEdit && (
+            {role === 'manager' && onEdit && (
               <button
                 onClick={() => { onEdit(order); onClose(); }}
                 className="w-full bg-white/10 rounded-xl py-3.5 text-sm font-medium hover:bg-white/15 transition-colors"
               >
                 Редактировать
+              </button>
+            )}
+
+            {role === 'manager' && onDelete && (
+              <button
+                onClick={() => onDelete(order.id)}
+                className="w-full bg-red-500/10 text-red-400 rounded-xl py-3.5 text-sm font-medium hover:bg-red-500/20 transition-colors"
+              >
+                Удалить заказ
               </button>
             )}
 
