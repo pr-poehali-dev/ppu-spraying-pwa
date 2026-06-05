@@ -153,6 +153,14 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
               </div>
             </div>
 
+            {/* Описание */}
+            {order.description && (
+              <div className="p-3 rounded-xl bg-white/5">
+                <div className="text-xs text-muted-foreground mb-1">Описание объекта</div>
+                <div className="text-sm whitespace-pre-wrap">{order.description}</div>
+              </div>
+            )}
+
             {/* Фотографии */}
             <div>
               <div className="flex items-center justify-between mb-2">
