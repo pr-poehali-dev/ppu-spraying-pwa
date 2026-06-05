@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Order, formatCurrency } from '@/data/mockData';
 import Icon from '@/components/ui/icon';
 
@@ -7,6 +8,21 @@ interface DashboardViewProps {
 
 export default function DashboardView({ orders }: DashboardViewProps) {
   const now = new Date();
+  const [selectedYear, setSelectedYear] = useState(now.getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(now.getMonth());
+
+  const MONTHS_RU = ['Январь','Февраль','Март','Апрель','Май','Июнь','Июль','Август','Сентябрь','Октябрь','Ноябрь','Декабрь'];
+  const MONTHS_RU_GEN = ['Января','Февраля','Марта','Апреля','Мая','Июня','Июля','Августа','Сентября','Октября','Ноября','Декабря'];
+
+  const prevMonth = () => {
+    if (selectedMonth === 0) { setSelectedMonth(11); setSelectedYear(y => y - 1); }
+    else setSelectedMonth(m => m - 1);
+  };
+  const nextMonth = () => {
+    if (selectedMonth === 11) { setSelectedMonth(0); setSelectedYear(y => y + 1); }
+    else setSelectedMonth(m => m + 1);
+  };
+  const isCurrentMonth = selectedYear === now.getFullYear() && selectedMonth === now.getMonth();
 
   const getWeekBounds = () => {
     const d = new Date(now);
@@ -17,15 +33,15 @@ export default function DashboardView({ orders }: DashboardViewProps) {
     return { from: mon.toISOString().split('T')[0], to: sun.toISOString().split('T')[0] };
   };
 
-  const getMonthBounds = () => {
-    const from = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-    const lastDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-    const to = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+  const getMonthBounds = (year: number, month: number) => {
+    const from = `${year}-${String(month+1).padStart(2,'0')}-01`;
+    const lastDay = new Date(year, month+1, 0).getDate();
+    const to = `${year}-${String(month+1).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
     return { from, to };
   };
 
   const week = getWeekBounds();
-  const monthB = getMonthBounds();
+  const monthB = getMonthBounds(selectedYear, selectedMonth);
 
   const completedOrders = orders.filter(o => o.status === 'completed');
 
@@ -41,8 +57,7 @@ export default function DashboardView({ orders }: DashboardViewProps) {
   const totalCompleted = completedOrders.length;
   const totalVolume = completedOrders.reduce((s, o) => s + (o.actual_volume_m2 || o.planned_volume_m2), 0);
 
-  const MONTHS_RU = ['Января','Февраля','Марта','Апреля','Мая','Июня','Июля','Августа','Сентября','Октября','Ноября','Декабря'];
-  const monthLabel = `${MONTHS_RU[now.getMonth()]} ${now.getFullYear()}`;
+  const monthLabel = `${MONTHS_RU_GEN[selectedMonth]} ${selectedYear}`;
 
   const dayOfWeek = (now.getDay() + 6) % 7;
   const weekStart = new Date(now); weekStart.setDate(now.getDate() - dayOfWeek);
@@ -119,8 +134,16 @@ export default function DashboardView({ orders }: DashboardViewProps) {
       <div className="px-4 mb-4">
         <div className="flex items-center gap-2 mb-3">
           <Icon name="BarChart2" size={16} className="text-muted-foreground" />
-          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Этот месяц</span>
-          <span className="text-xs text-muted-foreground/60 ml-auto">{monthLabel}</span>
+          <span className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">Месяц</span>
+          <div className="ml-auto flex items-center gap-1">
+            <button onClick={prevMonth} className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors">
+              <Icon name="ChevronLeft" size={14} />
+            </button>
+            <span className="text-xs font-medium min-w-[110px] text-center">{monthLabel}</span>
+            <button onClick={nextMonth} disabled={isCurrentMonth} className="w-7 h-7 rounded-lg bg-white/5 flex items-center justify-center hover:bg-white/10 transition-colors disabled:opacity-30">
+              <Icon name="ChevronRight" size={14} />
+            </button>
+          </div>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <div className="glass-card rounded-2xl p-4 animate-fade-in" style={{animationDelay:'120ms'}}>
