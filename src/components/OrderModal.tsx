@@ -3,11 +3,20 @@ import { Order, formatCurrency, formatDate, MATERIAL_LABELS } from '@/data/mockD
 import { apiUploadPhoto, apiDeletePhoto } from '@/api/client';
 import Icon from '@/components/ui/icon';
 
+function fileToBase64(file: File): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve((reader.result as string).split(',')[1]);
+    reader.onerror = reject;
+    reader.readAsDataURL(file);
+  });
+}
+
 interface OrderModalProps {
   order: Order;
   role: 'manager' | 'foreman';
   onClose: () => void;
-  onComplete: (orderId: string, actualVolume: number) => void;
+  onComplete: (orderId: string, actualVolume: number) => Promise<void> | void;
   onEdit?: (order: Order) => void;
   onPhotosChange?: (orderId: string, photos: string[]) => void;
 }
@@ -22,11 +31,16 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
   const fileInputRef = useRef<HTMLInputElement>(null);
   const isCompleted = order.status === 'completed';
 
-  const handleComplete = () => {
+  const [completing, setCompleting] = useState(false);
+
+  const handleComplete = async () => {
     const vol = parseFloat(actualVolume);
-    if (vol > 0) {
-      onComplete(order.id, vol);
-      onClose();
+    if (!vol || vol <= 0) return;
+    setCompleting(true);
+    try {
+      await onComplete(order.id, vol);
+    } finally {
+      setCompleting(false);
     }
   };
 
@@ -213,9 +227,13 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
                 </div>
                 <button
                   onClick={handleComplete}
-                  className="w-full neon-bg rounded-xl py-3.5 text-sm font-bold hover-scale transition-all"
+                  disabled={completing}
+                  className="w-full neon-bg rounded-xl py-3.5 text-sm font-bold hover-scale transition-all disabled:opacity-60 flex items-center justify-center gap-2"
                 >
-                  Отметить выполненным
+                  {completing
+                    ? <><div className="w-4 h-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />Сохранение...</>
+                    : 'Отметить выполненным'
+                  }
                 </button>
               </div>
             )}
