@@ -46,11 +46,6 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
   };
 
   const handleSubmit = async () => {
-    if (!form.customer_name.trim()) { setError('Введите имя клиента'); return; }
-    if (!form.address.trim()) { setError('Введите адрес'); return; }
-    if (!form.planned_volume_m2) { setError('Введите объём работ'); return; }
-    if (!form.price_per_m2) { setError('Введите цену за м²'); return; }
-
     setError('');
     setSaving(true);
     try {

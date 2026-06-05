@@ -63,8 +63,8 @@ def handler(event: dict, context) -> dict:
         # POST /orders
         if method == "POST":
             o = body
-            if not o.get("date") or not o.get("customer_name") or not o.get("address"):
-                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Заполните обязательные поля"})}
+            if not o.get("date"):
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Укажите дату"})}
             crew_rate = float(o.get("crew_rate") or 70)
             planned = float(o.get("planned_volume_m2") or 0)
             price = float(o.get("price_per_m2") or 0)
