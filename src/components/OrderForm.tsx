@@ -21,6 +21,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
     planned_volume_m2: order?.planned_volume_m2?.toString() || '',
     material: (order?.material || 'pena') as Material,
     price_per_m2: order?.price_per_m2?.toString() || '',
+    description: order?.description || '',
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
@@ -65,6 +66,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
         crew_rate: crewRate,
         crew_salary: crewSalary,
         status: order?.status || 'planned',
+        description: form.description,
       });
       if (!ok) {
         setError('Ошибка при сохранении. Попробуйте ещё раз.');
@@ -136,6 +138,17 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
               onChange={(e) => { setForm(f => ({ ...f, address: e.target.value })); setError(''); }}
               placeholder="ул. Ленина, 42"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
+            />
+          </div>
+
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1.5">Описание объекта</label>
+            <textarea
+              value={form.description}
+              onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+              placeholder="Тип кровли, особенности объекта, пожелания клиента..."
+              rows={3}
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors resize-none"
             />
           </div>
 

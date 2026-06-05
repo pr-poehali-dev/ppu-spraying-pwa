@@ -46,7 +46,7 @@ def handler(event: dict, context) -> dict:
 
         cols = ["id","date","customer_name","customer_phone","address",
                 "planned_volume_m2","actual_volume_m2","material","price_per_m2",
-                "total_amount","crew_rate","crew_salary","status","created_at","created_by","photos"]
+                "total_amount","crew_rate","crew_salary","status","created_at","created_by","photos","description"]
 
         # GET /orders
         if method == "GET":
@@ -73,11 +73,11 @@ def handler(event: dict, context) -> dict:
             cur.execute(
                 f"""INSERT INTO {SCHEMA}.orders
                     (date,customer_name,customer_phone,address,planned_volume_m2,
-                     actual_volume_m2,material,price_per_m2,total_amount,crew_rate,crew_salary,status,created_by)
-                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'planned',%s)
+                     actual_volume_m2,material,price_per_m2,total_amount,crew_rate,crew_salary,status,created_by,description)
+                    VALUES (%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,'planned',%s,%s)
                     RETURNING {','.join(cols)}""",
                 (o["date"], o["customer_name"], o.get("customer_phone",""), o["address"],
-                 planned, None, o.get("material","pena"), price, total, crew_rate, salary, o.get("created_by",""))
+                 planned, None, o.get("material","pena"), price, total, crew_rate, salary, o.get("created_by",""), o.get("description",""))
             )
             row = cur.fetchone()
             conn.commit()
@@ -117,10 +117,10 @@ def handler(event: dict, context) -> dict:
                     f"""UPDATE {SCHEMA}.orders
                         SET date=%s,customer_name=%s,customer_phone=%s,address=%s,
                             planned_volume_m2=%s,material=%s,price_per_m2=%s,
-                            total_amount=%s,crew_rate=%s,crew_salary=%s
+                            total_amount=%s,crew_rate=%s,crew_salary=%s,description=%s
                         WHERE id=%s RETURNING {','.join(cols)}""",
                     (o.get("date"), o.get("customer_name"), o.get("customer_phone",""), o.get("address",""),
-                     planned, o.get("material","pena"), price, total, crew_rate, salary, order_id)
+                     planned, o.get("material","pena"), price, total, crew_rate, salary, o.get("description",""), order_id)
                 )
             row = cur.fetchone()
             conn.commit()

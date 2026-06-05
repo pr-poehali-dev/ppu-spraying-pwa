@@ -19,6 +19,7 @@ export interface Order {
   created_at: string;
   created_by: string;
   photos: string[];
+  description: string;
 }
 
 export interface Settings {

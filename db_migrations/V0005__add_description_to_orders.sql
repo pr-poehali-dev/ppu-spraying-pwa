@@ -1,0 +1,1 @@
+ALTER TABLE t_p64806423_ppu_spraying_pwa.orders ADD COLUMN IF NOT EXISTS description TEXT NOT NULL DEFAULT '';
