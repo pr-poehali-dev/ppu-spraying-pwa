@@ -1,36 +1,19 @@
-const CACHE = 'ppu-crm-v1';
-const SHELL = ['/', '/src/main.tsx'];
+// SW v3 — сбрасываем все кэши, только офлайн-шелл
+const CACHE = 'ppu-crm-v3';
 
-self.addEventListener('install', (e) => {
-  e.waitUntil(
-    caches.open(CACHE).then(c => c.addAll(SHELL)).catch(() => {})
-  );
+self.addEventListener('install', () => {
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (e) => {
   e.waitUntil(
     caches.keys().then(keys =>
-      Promise.all(keys.filter(k => k !== CACHE).map(k => caches.delete(k)))
-    )
+      Promise.all(keys.map(k => caches.delete(k)))
+    ).then(() => self.clients.claim())
   );
-  self.clients.claim();
 });
 
+// Пропускаем все запросы напрямую — не кэшируем ничего
 self.addEventListener('fetch', (e) => {
-  const url = new URL(e.request.url);
-  // Не кэшируем API запросы
-  if (url.hostname === 'functions.poehali.dev') return;
-
-  e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).then(res => {
-        if (res.ok && e.request.method === 'GET') {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
-        }
-        return res;
-      }).catch(() => cached);
-    })
-  );
+  e.respondWith(fetch(e.request).catch(() => caches.match(e.request)));
 });
