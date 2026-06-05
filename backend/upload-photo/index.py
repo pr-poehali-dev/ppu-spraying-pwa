@@ -81,10 +81,11 @@ def handler(event: dict, context) -> dict:
 
             cur.execute(
                 f"""UPDATE {SCHEMA}.orders
-                    SET photos = (
-                        SELECT jsonb_agg(p)
+                    SET photos = COALESCE(
+                        (SELECT jsonb_agg(p)
                         FROM jsonb_array_elements(photos) p
-                        WHERE p::text != %s
+                        WHERE p::text != %s),
+                        '[]'::jsonb
                     )
                     WHERE id = %s
                     RETURNING photos""",
