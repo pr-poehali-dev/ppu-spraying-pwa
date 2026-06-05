@@ -6,7 +6,7 @@ interface OrderFormProps {
   order?: Order | null;
   defaultDate?: string;
   settings: Settings;
-  onSave: (order: Partial<Order>) => void;
+  onSave: (order: Partial<Order>) => Promise<boolean>;
   onCancel: () => void;
 }
 
@@ -22,6 +22,8 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
     material: (order?.material || 'pena') as Material,
     price_per_m2: order?.price_per_m2?.toString() || '',
   });
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
   const crewRate = form.material === 'pena' ? settings.rate_pena : settings.rate_polimochevina;
   const volume = parseFloat(form.planned_volume_m2) || 0;
@@ -34,19 +36,23 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
     if (digits.startsWith('8')) digits = '7' + digits.slice(1);
     if (!digits.startsWith('7')) digits = '7' + digits;
     digits = digits.slice(0, 11);
-
     let formatted = '+7';
     if (digits.length > 1) formatted += ' (' + digits.slice(1, 4);
     if (digits.length > 4) formatted += ') ' + digits.slice(4, 7);
     if (digits.length > 7) formatted += '-' + digits.slice(7, 9);
     if (digits.length > 9) formatted += '-' + digits.slice(9, 11);
-
     setForm(f => ({ ...f, customer_phone: formatted }));
   };
 
-  const handleSubmit = () => {
-    if (!form.customer_name || !form.address || !form.planned_volume_m2 || !form.price_per_m2) return;
-    onSave({
+  const handleSubmit = async () => {
+    if (!form.customer_name.trim()) { setError('Введите имя клиента'); return; }
+    if (!form.address.trim()) { setError('Введите адрес'); return; }
+    if (!form.planned_volume_m2) { setError('Введите объём работ'); return; }
+    if (!form.price_per_m2) { setError('Введите цену за м²'); return; }
+
+    setError('');
+    setSaving(true);
+    const ok = await onSave({
       ...order,
       date: form.date,
       customer_name: form.customer_name,
@@ -60,6 +66,10 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
       crew_salary: crewSalary,
       status: order?.status || 'planned',
     });
+    if (!ok) {
+      setError('Ошибка при сохранении. Попробуйте ещё раз.');
+      setSaving(false);
+    }
   };
 
   return (
@@ -68,6 +78,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
       <div
         className="relative w-full max-w-lg bg-[#111] rounded-t-3xl border-t border-white/10 animate-slide-up max-h-[90vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
+        translate="no"
       >
         <div className="sticky top-0 bg-[#111] border-b border-white/8 px-6 py-4 flex items-center justify-between">
           <h2 className="text-lg font-bold">{order ? 'Редактировать заказ' : 'Новый заказ'}</h2>
@@ -95,7 +106,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             <input
               type="text"
               value={form.customer_name}
-              onChange={(e) => setForm(f => ({ ...f, customer_name: e.target.value }))}
+              onChange={(e) => { setForm(f => ({ ...f, customer_name: e.target.value })); setError(''); }}
               placeholder="Иванов Иван Иванович"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
             />
@@ -117,7 +128,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             <input
               type="text"
               value={form.address}
-              onChange={(e) => setForm(f => ({ ...f, address: e.target.value }))}
+              onChange={(e) => { setForm(f => ({ ...f, address: e.target.value })); setError(''); }}
               placeholder="ул. Ленина, 42"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
             />
@@ -129,7 +140,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
               <input
                 type="number"
                 value={form.planned_volume_m2}
-                onChange={(e) => setForm(f => ({ ...f, planned_volume_m2: e.target.value }))}
+                onChange={(e) => { setForm(f => ({ ...f, planned_volume_m2: e.target.value })); setError(''); }}
                 placeholder="100"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
               />
@@ -139,7 +150,7 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
               <input
                 type="number"
                 value={form.price_per_m2}
-                onChange={(e) => setForm(f => ({ ...f, price_per_m2: e.target.value }))}
+                onChange={(e) => { setForm(f => ({ ...f, price_per_m2: e.target.value })); setError(''); }}
                 placeholder="350"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
               />
@@ -180,18 +191,27 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             </div>
           </div>
 
+          {error && (
+            <div className="text-xs text-red-400 px-1">{error}</div>
+          )}
+
           <div className="flex gap-3 pt-2 pb-2">
             <button
               onClick={onCancel}
-              className="flex-1 bg-white/10 rounded-xl py-3.5 text-sm font-medium hover:bg-white/15 transition-colors"
+              disabled={saving}
+              className="flex-1 bg-white/10 rounded-xl py-3.5 text-sm font-medium hover:bg-white/15 transition-colors disabled:opacity-40"
             >
               Отмена
             </button>
             <button
               onClick={handleSubmit}
-              className="flex-1 neon-bg rounded-xl py-3.5 text-sm font-bold hover-scale transition-all"
+              disabled={saving}
+              className="flex-1 neon-bg rounded-xl py-3.5 text-sm font-bold hover-scale transition-all disabled:opacity-60 flex items-center justify-center gap-2"
             >
-              Сохранить
+              {saving
+                ? <><div className="w-4 h-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" /> Сохранение...</>
+                : 'Сохранить'
+              }
             </button>
           </div>
         </div>

@@ -1,15 +1,13 @@
 import { useState } from 'react';
-import { Settings, User } from '@/data/mockData';
+import { Settings } from '@/data/mockData';
 import Icon from '@/components/ui/icon';
 
 interface SettingsViewProps {
   settings: Settings;
-  currentUser: User;
   onSaveSettings: (s: Settings) => void;
-  onLogout: () => void;
 }
 
-export default function SettingsView({ settings, currentUser, onSaveSettings, onLogout }: SettingsViewProps) {
+export default function SettingsView({ settings, onSaveSettings }: SettingsViewProps) {
   const [ratePena, setRatePena] = useState(settings.rate_pena.toString());
   const [ratePoli, setRatePoli] = useState(settings.rate_polimochevina.toString());
   const [saved, setSaved] = useState(false);
@@ -30,24 +28,6 @@ export default function SettingsView({ settings, currentUser, onSaveSettings, on
         <p className="text-muted-foreground text-sm">Управление тарифами</p>
       </div>
 
-      {/* User card */}
-      <div className="px-4 mb-5">
-        <div className="glass-card rounded-2xl p-4 flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-neon/30 to-neon/10 flex items-center justify-center shrink-0">
-            <span className="text-lg font-bold neon-text">
-              {currentUser.name.split(' ').map(n => n[0]).slice(0,2).join('')}
-            </span>
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="font-semibold truncate">{currentUser.name}</div>
-            <div className="text-xs text-muted-foreground">{currentUser.phone}</div>
-            <div className={`text-xs mt-0.5 font-medium ${currentUser.role === 'manager' ? 'neon-text' : 'text-blue-400'}`}>
-              {currentUser.role === 'manager' ? 'Менеджер' : 'Бригадир'}
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Rates */}
       <div className="px-4 mb-5">
         <div className="flex items-center gap-2 mb-3">
@@ -57,9 +37,7 @@ export default function SettingsView({ settings, currentUser, onSaveSettings, on
 
         <div className="glass-card rounded-2xl p-4 space-y-4">
           <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">
-              Ставка — Пена (₽/м²)
-            </label>
+            <label className="text-xs text-muted-foreground block mb-1.5">Ставка — Пена (₽/м²)</label>
             <div className="flex items-center gap-3">
               <input
                 type="number"
@@ -74,9 +52,7 @@ export default function SettingsView({ settings, currentUser, onSaveSettings, on
           </div>
 
           <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">
-              Ставка — Полимочевина (₽/м²)
-            </label>
+            <label className="text-xs text-muted-foreground block mb-1.5">Ставка — Полимочевина (₽/м²)</label>
             <div className="flex items-center gap-3">
               <input
                 type="number"
@@ -127,17 +103,6 @@ export default function SettingsView({ settings, currentUser, onSaveSettings, on
             </div>
           ))}
         </div>
-      </div>
-
-      {/* Logout */}
-      <div className="px-4">
-        <button
-          onClick={onLogout}
-          className="w-full glass-card rounded-2xl py-3.5 text-sm font-medium text-red-400 hover:bg-red-500/10 transition-colors flex items-center justify-center gap-2"
-        >
-          <Icon name="LogOut" size={16} />
-          Выйти из аккаунта
-        </button>
       </div>
     </div>
   );

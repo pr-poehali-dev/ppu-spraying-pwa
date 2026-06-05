@@ -1,10 +1,9 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Order, User, Settings, DEFAULT_SETTINGS } from '@/data/mockData';
+import { Order, Settings, DEFAULT_SETTINGS } from '@/data/mockData';
 import {
-  apiLogin, apiGetOrders, apiCreateOrder, apiUpdateOrder,
+  apiGetOrders, apiCreateOrder, apiUpdateOrder,
   apiGetSettings, apiSaveSettings
 } from '@/api/client';
-import LoginScreen from '@/components/LoginScreen';
 import CalendarView from '@/components/CalendarView';
 import JournalView from '@/components/JournalView';
 import DashboardView from '@/components/DashboardView';
@@ -22,16 +21,11 @@ const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
   { id: 'settings', label: 'Настройки', icon: 'Settings' },
 ];
 
-const SESSION_KEY = 'ppu_session';
-
 export default function App() {
-  const [user, setUser] = useState<User | null>(() => {
-    try { return JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); } catch { return null; }
-  });
   const [tab, setTab] = useState<Tab>('calendar');
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState(false);
 
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
@@ -39,10 +33,8 @@ export default function App() {
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [formDate, setFormDate] = useState('');
 
-  // Загрузка данных после входа
+  // Загрузка данных при старте
   useEffect(() => {
-    if (!user) return;
-    setLoading(true);
     Promise.all([apiGetOrders(), apiGetSettings()])
       .then(([ords, sets]) => {
         setOrders(ords);
@@ -50,33 +42,15 @@ export default function App() {
       })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [user]);
+  }, []);
 
-  // Polling каждые 15 сек для синхронизации
+  // Polling каждые 15 сек
   useEffect(() => {
-    if (!user) return;
     const interval = setInterval(() => {
       apiGetOrders().then(setOrders).catch(() => {});
     }, 15000);
     return () => clearInterval(interval);
-  }, [user]);
-
-  const handleLogin = useCallback(async (phone: string, password: string): Promise<string | null> => {
-    try {
-      const { user: u } = await apiLogin(phone, password);
-      localStorage.setItem(SESSION_KEY, JSON.stringify(u));
-      setUser(u);
-      return null;
-    } catch (e: unknown) {
-      return e instanceof Error ? e.message : 'Ошибка входа';
-    }
   }, []);
-
-  const handleLogout = () => {
-    localStorage.removeItem(SESSION_KEY);
-    setUser(null);
-    setOrders([]);
-  };
 
   const handleCardClick = useCallback((order: Order) => {
     setSelectedOrder(order);
@@ -109,21 +83,26 @@ export default function App() {
     finally { setSyncing(false); }
   }, [orders]);
 
-  const handleSaveOrder = useCallback(async (data: Partial<Order>) => {
+  const handleSaveOrder = useCallback(async (data: Partial<Order>): Promise<boolean> => {
     setSyncing(true);
     try {
       if (editOrder) {
         const updated = await apiUpdateOrder(editOrder.id, { ...editOrder, ...data });
         setOrders(prev => prev.map(o => o.id === editOrder.id ? updated : o));
       } else {
-        const created = await apiCreateOrder({ ...data, created_by: user?.name || '' });
+        const created = await apiCreateOrder({ ...data, created_by: '' });
         setOrders(prev => [created, ...prev]);
       }
       setShowForm(false);
       setEditOrder(null);
-    } catch (e) { console.error(e); }
-    finally { setSyncing(false); }
-  }, [editOrder, user]);
+      return true;
+    } catch (e) {
+      console.error(e);
+      return false;
+    } finally {
+      setSyncing(false);
+    }
+  }, [editOrder]);
 
   const handlePhotosChange = useCallback((orderId: string, photos: string[]) => {
     setOrders(prev => prev.map(o => o.id === orderId ? { ...o, photos } : o));
@@ -134,10 +113,6 @@ export default function App() {
     setSettings(s);
     try { await apiSaveSettings(s); } catch (e) { console.error(e); }
   }, []);
-
-  if (!user) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
 
   return (
     <div className="min-h-screen bg-background flex flex-col font-golos" translate="no">
@@ -150,18 +125,9 @@ export default function App() {
               ППУ <span className="neon-text">CRM</span>
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            {syncing && (
-              <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
-            )}
-            <div className={`text-xs font-medium px-2.5 py-1 rounded-full ${
-              user.role === 'manager'
-                ? 'bg-neon/10 text-neon'
-                : 'bg-blue-500/10 text-blue-400'
-            }`}>
-              {user.role === 'manager' ? 'Менеджер' : 'Бригадир'}
-            </div>
-          </div>
+          {syncing && (
+            <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
+          )}
         </div>
       </div>
 
@@ -178,21 +144,21 @@ export default function App() {
       {/* Main content */}
       <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'calc(100vh - 112px)' }}>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'calendar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <CalendarView orders={orders} role={user.role} onCardClick={handleCardClick} onAddOrder={handleAddOrder} />
+          <CalendarView orders={orders} role="manager" onCardClick={handleCardClick} onAddOrder={handleAddOrder} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'journal' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <JournalView orders={orders} role={user.role} onOrderClick={handleCardClick} />
+          <JournalView orders={orders} role="manager" onOrderClick={handleCardClick} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'dashboard' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
           <DashboardView orders={orders} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'settings' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <SettingsView settings={settings} currentUser={user} onSaveSettings={handleSaveSettings} onLogout={handleLogout} />
+          <SettingsView settings={settings} onSaveSettings={handleSaveSettings} />
         </div>
       </div>
 
       {/* FAB */}
-      {user.role === 'manager' && tab === 'calendar' && (
+      {tab === 'calendar' && (
         <button
           onClick={() => handleAddOrder(new Date().toISOString().split('T')[0])}
           className="fixed right-5 bottom-24 z-40 w-14 h-14 rounded-2xl neon-bg shadow-lg hover-scale transition-all flex items-center justify-center"
@@ -233,10 +199,10 @@ export default function App() {
       {selectedOrder && (
         <OrderModal
           order={selectedOrder}
-          role={user.role}
+          role="manager"
           onClose={() => setSelectedOrder(null)}
           onComplete={handleComplete}
-          onEdit={user.role === 'manager' ? handleEditOrder : undefined}
+          onEdit={handleEditOrder}
           onPhotosChange={handlePhotosChange}
         />
       )}
