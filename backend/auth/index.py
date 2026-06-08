@@ -70,13 +70,15 @@ def handler(event: dict, context) -> dict:
 
         # LOGIN
         if action == "login":
-            phone = esc(body.get("phone", "").strip())
+            phone_raw = body.get("phone", "").strip()
             password = body.get("password", "")
-            if not phone or not password:
+            if not phone_raw or not password:
                 return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Введите телефон и пароль"})}
+            # Нормализуем: оставляем только цифры, берём последние 10
+            phone_digits = ''.join(c for c in phone_raw if c.isdigit())[-10:]
             pwd_hash = hash_pwd(password)
             cur.execute(
-                f"SELECT id, name, phone, role FROM {SCHEMA}.users WHERE phone = '{phone}' AND password_hash = '{pwd_hash}' AND is_active = true"
+                f"SELECT id, name, phone, role FROM {SCHEMA}.users WHERE RIGHT(REGEXP_REPLACE(phone, '[^0-9]', '', 'g'), 10) = '{phone_digits}' AND password_hash = '{pwd_hash}' AND is_active = true"
             )
             row = cur.fetchone()
             if not row:
