@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Order, Material, Settings, MATERIAL_LABELS } from '@/data/mockData';
+import { apiGetCustomers, Customer } from '@/api/client';
 import Icon from '@/components/ui/icon';
 
 interface OrderFormProps {
@@ -25,6 +26,47 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [suggestions, setSuggestions] = useState<Customer[]>([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const nameRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    apiGetCustomers().then(setCustomers).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (nameRef.current && !nameRef.current.contains(e.target as Node)) {
+        setShowSuggestions(false);
+      }
+    };
+    document.addEventListener('mousedown', handler);
+    return () => document.removeEventListener('mousedown', handler);
+  }, []);
+
+  const handleNameChange = (val: string) => {
+    setForm(f => ({ ...f, customer_name: val }));
+    if (val.trim().length >= 2) {
+      const filtered = customers.filter(c =>
+        c.customer_name.toLowerCase().includes(val.toLowerCase())
+      );
+      setSuggestions(filtered.slice(0, 5));
+      setShowSuggestions(filtered.length > 0);
+    } else {
+      setShowSuggestions(false);
+    }
+  };
+
+  const selectCustomer = (c: Customer) => {
+    setForm(f => ({
+      ...f,
+      customer_name: c.customer_name,
+      customer_phone: c.customer_phone,
+      address: c.address,
+    }));
+    setShowSuggestions(false);
+  };
 
   const crewRate = form.material === 'pena' ? settings.rate_pena : settings.rate_polimochevina;
   const volume = parseFloat(form.planned_volume_m2) || 0;
@@ -103,15 +145,31 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             />
           </div>
 
-          <div>
+          <div ref={nameRef} className="relative">
             <label className="text-xs text-muted-foreground block mb-1.5">ФИО клиента</label>
             <input
               type="text"
               value={form.customer_name}
-              onChange={(e) => { setForm(f => ({ ...f, customer_name: e.target.value })); setError(''); }}
+              onChange={(e) => { handleNameChange(e.target.value); setError(''); }}
+              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
               placeholder="Иванов Иван Иванович"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
             />
+            {showSuggestions && (
+              <div className="absolute z-50 w-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden shadow-xl">
+                {suggestions.map((c, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onMouseDown={() => selectCustomer(c)}
+                    className="w-full px-4 py-3 text-left hover:bg-white/8 transition-colors border-b border-white/5 last:border-0"
+                  >
+                    <div className="text-sm font-medium">{c.customer_name}</div>
+                    <div className="text-xs text-muted-foreground">{c.customer_phone} · {c.address}</div>
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
 
           <div>

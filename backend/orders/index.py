@@ -48,6 +48,18 @@ def handler(event: dict, context) -> dict:
                 "planned_volume_m2","actual_volume_m2","material","price_per_m2",
                 "total_amount","crew_rate","crew_salary","status","created_at","created_by","photos","description"]
 
+        # GET /orders/customers — уникальные клиенты из всех заказов
+        if method == "GET" and path.rstrip("/").endswith("/customers"):
+            cur.execute(f"""
+                SELECT DISTINCT ON (customer_phone) customer_name, customer_phone, address
+                FROM {SCHEMA}.orders
+                WHERE customer_phone IS NOT NULL AND customer_phone != ''
+                ORDER BY customer_phone, created_at DESC
+            """)
+            rows = cur.fetchall()
+            customers = [{"customer_name": r[0], "customer_phone": r[1], "address": r[2]} for r in rows]
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps(customers)}
+
         # GET /orders
         if method == "GET":
             where = "1=1"

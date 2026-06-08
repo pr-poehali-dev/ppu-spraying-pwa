@@ -33,6 +33,16 @@ export async function apiRegister(name: string, phone: string, password: string,
 }
 
 // ORDERS
+export interface Customer {
+  customer_name: string;
+  customer_phone: string;
+  address: string;
+}
+
+export async function apiGetCustomers(): Promise<Customer[]> {
+  return req<Customer[]>(`${URLS.orders}/customers`);
+}
+
 export async function apiGetOrders(): Promise<Order[]> {
   return req<Order[]>(URLS.orders);
 }
