@@ -16,7 +16,7 @@ interface OrderModalProps {
   order: Order;
   role: 'manager' | 'foreman';
   onClose: () => void;
-  onComplete: (orderId: string, actualVolume: number) => Promise<void> | void;
+  onComplete: (orderId: string, actualVolume: number, total?: number, salary?: number) => Promise<void> | void;
   onEdit?: (order: Order) => void;
   onDelete?: (orderId: string) => void;
   onReopen?: (orderId: string) => void;
@@ -25,8 +25,11 @@ interface OrderModalProps {
 
 export default function OrderModal({ order, role, onClose, onComplete, onEdit, onDelete, onReopen, onPhotosChange }: OrderModalProps) {
   const [actualVolume, setActualVolume] = useState<string>(
-    order.actual_volume_m2?.toString() || order.planned_volume_m2.toString()
+    order.actual_volume_m2?.toString() || order.planned_volume_m2?.toString() || ''
   );
+  const [manualTotal, setManualTotal] = useState<string>(order.total_amount?.toString() || '');
+  const [manualSalary, setManualSalary] = useState<string>(order.crew_salary?.toString() || '');
+  const [isManual, setIsManual] = useState(false);
   const [photos, setPhotos] = useState<string[]>(order.photos || []);
   const [uploading, setUploading] = useState(false);
   const [lightbox, setLightbox] = useState<string | null>(null);
@@ -37,11 +40,12 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
   const [completing, setCompleting] = useState(false);
 
   const handleComplete = async () => {
-    const vol = parseFloat(actualVolume);
-    if (!vol || vol <= 0) return;
+    const vol = parseFloat(actualVolume) || 0;
     setCompleting(true);
     try {
-      await onComplete(order.id, vol);
+      const total = isManual ? (parseFloat(manualTotal) || undefined) : undefined;
+      const salary = isManual ? (parseFloat(manualSalary) || undefined) : undefined;
+      await onComplete(order.id, vol, total, salary);
     } finally {
       setCompleting(false);
     }
@@ -253,6 +257,42 @@ export default function OrderModal({ order, role, onClose, onComplete, onEdit, o
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
                     placeholder="Введите фактический объём"
                   />
+                </div>
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="text-xs text-muted-foreground">Стоимость и зарплата</span>
+                    <button
+                      type="button"
+                      onClick={() => setIsManual(m => !m)}
+                      className={`text-xs px-3 py-1 rounded-lg transition-colors ${isManual ? 'bg-neon/20 text-neon' : 'bg-white/5 text-muted-foreground hover:bg-white/10'}`}
+                    >
+                      {isManual ? 'Вручную' : 'Авто'}
+                    </button>
+                  </div>
+                  {isManual && (
+                    <div className="grid grid-cols-2 gap-2">
+                      <div>
+                        <label className="text-xs text-muted-foreground block mb-1.5">Итого, ₽</label>
+                        <input
+                          type="number"
+                          value={manualTotal}
+                          onChange={(e) => setManualTotal(e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-white/5 border border-neon/30 rounded-xl px-4 py-3 text-sm font-bold neon-text focus:outline-none focus:border-neon transition-colors"
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs text-muted-foreground block mb-1.5">Зарплата, ₽</label>
+                        <input
+                          type="number"
+                          value={manualSalary}
+                          onChange={(e) => setManualSalary(e.target.value)}
+                          placeholder="0"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-neon transition-colors"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <button
                   onClick={handleComplete}

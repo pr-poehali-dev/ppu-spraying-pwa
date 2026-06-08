@@ -67,7 +67,7 @@ export default function App() {
     setShowForm(true);
   }, []);
 
-  const handleComplete = useCallback(async (orderId: string, actualVolume: number) => {
+  const handleComplete = useCallback(async (orderId: string, actualVolume: number, total?: number, salary?: number) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
     setSyncing(true);
@@ -76,6 +76,8 @@ export default function App() {
         ...order,
         status: 'completed',
         actual_volume_m2: actualVolume,
+        ...(total !== undefined && { total_amount: total }),
+        ...(salary !== undefined && { crew_salary: salary }),
       });
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
       setSelectedOrder(null);
