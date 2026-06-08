@@ -26,6 +26,9 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [manualTotal, setManualTotal] = useState(order?.total_amount?.toString() || '');
+  const [manualSalary, setManualSalary] = useState(order?.crew_salary?.toString() || '');
+  const [isManual, setIsManual] = useState(false);
   const [customers, setCustomers] = useState<Customer[]>([]);
   const [suggestions, setSuggestions] = useState<Customer[]>([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
@@ -71,8 +74,8 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
   const crewRate = form.material === 'pena' ? settings.rate_pena : settings.rate_polimochevina;
   const volume = parseFloat(form.planned_volume_m2) || 0;
   const price = parseFloat(form.price_per_m2) || 0;
-  const totalAmount = volume * price;
-  const crewSalary = volume * crewRate;
+  const totalAmount = isManual ? (parseFloat(manualTotal) || 0) : volume * price;
+  const crewSalary = isManual ? (parseFloat(manualSalary) || 0) : volume * crewRate;
 
   const handlePhoneChange = (val: string) => {
     let digits = val.replace(/\D/g, '');
@@ -247,18 +250,63 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-2">
-            <div className="p-3 rounded-xl bg-white/5">
-              <div className="text-xs text-muted-foreground mb-1">Итого</div>
-              <div className="text-base font-bold neon-text">
-                {totalAmount > 0 ? totalAmount.toLocaleString('ru-RU') + ' ₽' : '—'}
-              </div>
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <span className="text-xs text-muted-foreground">Стоимость и зарплата</span>
+              <button
+                type="button"
+                onClick={() => {
+                  setIsManual(m => !m);
+                  if (!isManual) {
+                    setManualTotal((volume * price).toString());
+                    setManualSalary((volume * crewRate).toString());
+                  }
+                }}
+                className={`text-xs px-3 py-1 rounded-lg transition-colors ${isManual ? 'bg-neon/20 text-neon' : 'bg-white/5 text-muted-foreground hover:bg-white/10'}`}
+              >
+                {isManual ? 'Вручную' : 'Авто'}
+              </button>
             </div>
-            <div className="p-3 rounded-xl bg-white/5">
-              <div className="text-xs text-muted-foreground mb-1">Зарплата бригады</div>
-              <div className="text-base font-semibold">
-                {crewSalary > 0 ? crewSalary.toLocaleString('ru-RU') + ' ₽' : '—'}
-              </div>
+            <div className="grid grid-cols-2 gap-2">
+              {isManual ? (
+                <>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1.5">Итого, ₽</label>
+                    <input
+                      type="number"
+                      value={manualTotal}
+                      onChange={(e) => setManualTotal(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-white/5 border border-neon/30 rounded-xl px-4 py-3 text-sm font-bold neon-text focus:outline-none focus:border-neon transition-colors"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-xs text-muted-foreground block mb-1.5">Зарплата, ₽</label>
+                    <input
+                      type="number"
+                      value={manualSalary}
+                      onChange={(e) => setManualSalary(e.target.value)}
+                      placeholder="0"
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-neon transition-colors"
+                    />
+                  </div>
+                </>
+              ) : (
+                <>
+                  <div className="p-3 rounded-xl bg-white/5">
+                    <div className="text-xs text-muted-foreground mb-1">Итого</div>
+                    <div className="text-base font-bold neon-text">
+                      {totalAmount > 0 ? totalAmount.toLocaleString('ru-RU') + ' ₽' : '—'}
+                    </div>
+                  </div>
+                  <div className="p-3 rounded-xl bg-white/5">
+                    <div className="text-xs text-muted-foreground mb-1">Зарплата бригады</div>
+                    <div className="text-base font-semibold">
+                      {crewSalary > 0 ? crewSalary.toLocaleString('ru-RU') + ' ₽' : '—'}
+                    </div>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 
