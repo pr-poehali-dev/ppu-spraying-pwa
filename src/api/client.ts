@@ -21,13 +21,20 @@ export function clearToken() {
 
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
   const token = getToken();
-  const res = await fetch(url, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { 'X-Auth-Token': token } : {}),
-    },
-    ...options,
-  });
+  const { headers: optHeaders, ...restOptions } = options || {};
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      ...restOptions,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { 'X-Auth-Token': token } : {}),
+        ...(optHeaders as Record<string, string> || {}),
+      },
+    });
+  } catch {
+    throw new Error('Нет соединения с сервером. Проверьте интернет.');
+  }
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Ошибка запроса');
   return data as T;
