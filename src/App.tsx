@@ -51,14 +51,15 @@ export default function App() {
       .finally(() => setLoading(false));
   }, [user]);
 
-  // Polling каждые 15 сек
-  useEffect(() => {
-    if (!user) return;
-    const interval = setInterval(() => {
-      apiGetOrders().then(setOrders).catch(() => {});
-    }, 15000);
-    return () => clearInterval(interval);
-  }, [user]);
+  const handleRefresh = useCallback(async () => {
+    if (syncing) return;
+    setSyncing(true);
+    try {
+      const ords = await apiGetOrders();
+      setOrders(ords);
+    } catch (e) { console.error(e); }
+    finally { setSyncing(false); }
+  }, [syncing]);
 
   const handleLogin = useCallback((u: User) => setUser(u), []);
 
@@ -189,7 +190,14 @@ export default function App() {
             </span>
           </div>
           <div className="flex items-center gap-3">
-            {syncing && <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />}
+            <button
+              onClick={handleRefresh}
+              disabled={syncing}
+              className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors disabled:opacity-40"
+              title="Обновить заказы"
+            >
+              <Icon name="RefreshCw" size={13} className={syncing ? 'animate-spin' : ''} />
+            </button>
             <div className="flex items-center gap-2">
               <span className="text-xs text-muted-foreground">{user.name}</span>
               <button
