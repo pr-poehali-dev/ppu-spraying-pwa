@@ -1,0 +1,1 @@
+ALTER TABLE t_p64806423_ppu_spraying_pwa.users ADD COLUMN IF NOT EXISTS is_active BOOLEAN NOT NULL DEFAULT true;
