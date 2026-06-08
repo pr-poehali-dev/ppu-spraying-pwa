@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { apiListUsers, apiCreateUser, apiUpdateUser } from '@/api/client';
+import { apiListUsers, apiCreateUser, apiUpdateUser, apiDeleteUser } from '@/api/client';
 import Icon from '@/components/ui/icon';
 
 type UserRecord = {
@@ -80,6 +80,21 @@ export default function UsersView() {
     if (digits.length > 7) formatted += '-' + digits.slice(7, 9);
     if (digits.length > 9) formatted += '-' + digits.slice(9, 11);
     setForm(f => ({ ...f, phone: formatted }));
+  };
+
+  const handleDelete = async () => {
+    if (!editUser) return;
+    if (!window.confirm(`Удалить пользователя ${editUser.name}? Это действие нельзя отменить.`)) return;
+    setSaving(true);
+    try {
+      await apiDeleteUser(editUser.id);
+      setUsers(prev => prev.filter(u => u.id !== editUser.id));
+      setShowForm(false);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : 'Ошибка удаления');
+    } finally {
+      setSaving(false);
+    }
   };
 
   const handleSave = async () => {
@@ -243,6 +258,15 @@ export default function UsersView() {
                   : 'Сохранить'
                 }
               </button>
+              {editUser && (
+                <button
+                  onClick={handleDelete}
+                  disabled={saving}
+                  className="w-full bg-red-500/10 text-red-400 rounded-xl py-3.5 text-sm font-medium hover:bg-red-500/20 transition-colors disabled:opacity-50"
+                >
+                  Удалить пользователя
+                </button>
+              )}
               <div className="h-2" />
             </div>
           </div>

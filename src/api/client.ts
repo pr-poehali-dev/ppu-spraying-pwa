@@ -74,6 +74,13 @@ export async function apiUpdateUser(data: { id: string; name: string; phone: str
   });
 }
 
+export async function apiDeleteUser(id: string): Promise<void> {
+  await req(URLS.auth, {
+    method: 'POST',
+    body: JSON.stringify({ action: 'delete_user', id }),
+  });
+}
+
 // ORDERS
 export interface Customer {
   customer_name: string;

@@ -152,6 +152,15 @@ def handler(event: dict, context) -> dict:
                 return {"statusCode": 404, "headers": CORS, "body": json.dumps({"error": "Пользователь не найден"})}
             return {"statusCode": 200, "headers": CORS, "body": json.dumps({"user": {"id": str(r[0]), "name": r[1], "phone": r[2], "role": r[3], "is_active": r[4]}})}
 
+        # УДАЛИТЬ ПОЛЬЗОВАТЕЛЯ
+        if action == "delete_user":
+            uid = esc(body.get("id", ""))
+            if uid == esc(current_user["id"]):
+                return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Нельзя удалить себя"})}
+            cur.execute(f"DELETE FROM {SCHEMA}.users WHERE id = '{uid}'")
+            conn.commit()
+            return {"statusCode": 200, "headers": CORS, "body": json.dumps({"ok": True})}
+
         return {"statusCode": 400, "headers": CORS, "body": json.dumps({"error": "Неизвестное действие"})}
 
     finally:
