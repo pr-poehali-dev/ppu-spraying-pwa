@@ -100,8 +100,8 @@ def handler(event: dict, context) -> dict:
             order_id = body.get("id") or path.rstrip("/").split("/")[-1]
             o = body
 
-            if o.get("status") == "planned" and set(o.keys()) <= {"_method", "id", "status", "actual_volume_m2"}:
-                # Только смена статуса (возврат в работу)
+            if o.get("_reopen"):
+                # Возврат в работу — только сброс статуса
                 cur.execute(
                     f"""UPDATE {SCHEMA}.orders
                         SET status='planned', actual_volume_m2=NULL
@@ -109,10 +109,10 @@ def handler(event: dict, context) -> dict:
                     (order_id,)
                 )
             elif o.get("status") == "completed":
+                # Завершение заказа
                 actual = float(o.get("actual_volume_m2") or 0)
                 price = float(o.get("price_per_m2") or 0)
                 crew_rate = float(o.get("crew_rate") or 70)
-                # Берём переданные значения, иначе считаем автоматически
                 total = float(o["total_amount"]) if o.get("total_amount") is not None else actual * price
                 salary = float(o["crew_salary"]) if o.get("crew_salary") is not None else actual * crew_rate
                 cur.execute(
@@ -122,21 +122,23 @@ def handler(event: dict, context) -> dict:
                     (actual, total, salary, order_id)
                 )
             else:
+                # Полное редактирование заказа
                 planned = float(o.get("planned_volume_m2") or 0)
                 actual = float(o["actual_volume_m2"]) if o.get("actual_volume_m2") is not None else None
                 price = float(o.get("price_per_m2") or 0)
                 crew_rate = float(o.get("crew_rate") or 70)
-                # Берём переданные значения, иначе считаем автоматически
                 total = float(o["total_amount"]) if o.get("total_amount") is not None else planned * price
                 salary = float(o["crew_salary"]) if o.get("crew_salary") is not None else planned * crew_rate
+                status = o.get("status", "planned")
                 cur.execute(
                     f"""UPDATE {SCHEMA}.orders
                         SET date=%s,customer_name=%s,customer_phone=%s,address=%s,
                             planned_volume_m2=%s,actual_volume_m2=%s,material=%s,price_per_m2=%s,
-                            total_amount=%s,crew_rate=%s,crew_salary=%s,description=%s
+                            total_amount=%s,crew_rate=%s,crew_salary=%s,description=%s,status=%s
                         WHERE id=%s RETURNING {','.join(cols)}""",
                     (o.get("date"), o.get("customer_name"), o.get("customer_phone",""), o.get("address",""),
-                     planned, actual, o.get("material","pena"), price, total, crew_rate, salary, o.get("description",""), order_id)
+                     planned, actual, o.get("material","pena"), price, total, crew_rate, salary,
+                     o.get("description",""), status, order_id)
                 )
             row = cur.fetchone()
             conn.commit()
