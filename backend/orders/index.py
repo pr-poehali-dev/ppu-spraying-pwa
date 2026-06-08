@@ -100,7 +100,8 @@ def handler(event: dict, context) -> dict:
             order_id = body.get("id") or path.rstrip("/").split("/")[-1]
             o = body
 
-            if o.get("status") == "planned":
+            if o.get("status") == "planned" and set(o.keys()) <= {"_method", "id", "status", "actual_volume_m2"}:
+                # Только смена статуса (возврат в работу)
                 cur.execute(
                     f"""UPDATE {SCHEMA}.orders
                         SET status='planned', actual_volume_m2=NULL
