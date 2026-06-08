@@ -1,6 +1,6 @@
 export type Material = 'pena' | 'polimochevina';
 export type Status = 'planned' | 'completed';
-export type Role = 'manager' | 'foreman';
+export type Role = 'admin' | 'manager' | 'foreman';
 
 export interface Order {
   id: string;
