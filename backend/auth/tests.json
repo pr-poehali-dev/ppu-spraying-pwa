@@ -6,12 +6,6 @@
       "path": "/",
       "body": {"phone": "+70000000000", "password": "wrong", "action": "login"},
       "expectedStatus": 401
-    },
-    {
-      "name": "Me without token",
-      "method": "GET",
-      "path": "/",
-      "expectedStatus": 401
     }
   ]
 }

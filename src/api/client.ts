@@ -7,34 +7,11 @@ const URLS = {
   uploadPhoto: 'https://functions.poehali.dev/4e40e4f1-0d92-4dbb-895f-d2125d427edc',
 };
 
-const TOKEN_KEY = 'auth_token';
-
-export function getToken(): string {
-  return localStorage.getItem(TOKEN_KEY) || '';
-}
-export function setToken(t: string) {
-  localStorage.setItem(TOKEN_KEY, t);
-}
-export function clearToken() {
-  localStorage.removeItem(TOKEN_KEY);
-}
-
 async function req<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = getToken();
-  const { headers: optHeaders, ...restOptions } = options || {};
-  let res: Response;
-  try {
-    res = await fetch(url, {
-      ...restOptions,
-      headers: {
-        'Content-Type': 'application/json',
-        ...(token ? { 'X-Auth-Token': token } : {}),
-        ...(optHeaders as Record<string, string> || {}),
-      },
-    });
-  } catch {
-    throw new Error('Нет соединения с сервером. Проверьте интернет.');
-  }
+  const res = await fetch(url, {
+    headers: { 'Content-Type': 'application/json' },
+    ...options,
+  });
   const data = await res.json();
   if (!res.ok) throw new Error(data.error || 'Ошибка запроса');
   return data as T;
@@ -48,57 +25,14 @@ export async function apiLogin(phone: string, password: string): Promise<{ user:
   });
 }
 
-export async function apiMe(): Promise<{ user: User }> {
-  return req(URLS.auth);
-}
-
-export async function apiLogout(): Promise<void> {
-  await req(URLS.auth, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'logout' }),
-  });
-  clearToken();
-}
-
-export async function apiListUsers(): Promise<{ users: (User & { is_active: boolean; created_at: string })[] }> {
+export async function apiRegister(name: string, phone: string, password: string, role: string): Promise<{ user: User; token: string }> {
   return req(URLS.auth, {
     method: 'POST',
-    body: JSON.stringify({ action: 'list_users' }),
-  });
-}
-
-export async function apiCreateUser(data: { name: string; phone: string; password: string; role: string }): Promise<{ user: User }> {
-  return req(URLS.auth, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'create_user', ...data }),
-  });
-}
-
-export async function apiUpdateUser(data: { id: string; name: string; phone: string; role: string; is_active: boolean; password?: string }): Promise<{ user: User }> {
-  return req(URLS.auth, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'update_user', ...data }),
-  });
-}
-
-export async function apiDeleteUser(id: string): Promise<void> {
-  await req(URLS.auth, {
-    method: 'POST',
-    body: JSON.stringify({ action: 'delete_user', id }),
+    body: JSON.stringify({ action: 'register', name, phone, password, role }),
   });
 }
 
 // ORDERS
-export interface Customer {
-  customer_name: string;
-  customer_phone: string;
-  address: string;
-}
-
-export async function apiGetCustomers(): Promise<Customer[]> {
-  return req<Customer[]>(`${URLS.orders}/customers`);
-}
-
 export async function apiGetOrders(): Promise<Order[]> {
   return req<Order[]>(URLS.orders);
 }

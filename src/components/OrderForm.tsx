@@ -1,6 +1,5 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState } from 'react';
 import { Order, Material, Settings, MATERIAL_LABELS } from '@/data/mockData';
-import { apiGetCustomers, Customer } from '@/api/client';
 import Icon from '@/components/ui/icon';
 
 interface OrderFormProps {
@@ -26,56 +25,12 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
-  const [manualTotal, setManualTotal] = useState(order?.total_amount?.toString() || '');
-  const [manualSalary, setManualSalary] = useState(order?.crew_salary?.toString() || '');
-  const [isManual, setIsManual] = useState(false);
-  const [customers, setCustomers] = useState<Customer[]>([]);
-  const [suggestions, setSuggestions] = useState<Customer[]>([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const nameRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    apiGetCustomers().then(setCustomers).catch(() => {});
-  }, []);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (nameRef.current && !nameRef.current.contains(e.target as Node)) {
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener('mousedown', handler);
-    return () => document.removeEventListener('mousedown', handler);
-  }, []);
-
-  const handleNameChange = (val: string) => {
-    setForm(f => ({ ...f, customer_name: val }));
-    if (val.trim().length >= 2) {
-      const filtered = customers.filter(c =>
-        c.customer_name.toLowerCase().includes(val.toLowerCase())
-      );
-      setSuggestions(filtered.slice(0, 5));
-      setShowSuggestions(filtered.length > 0);
-    } else {
-      setShowSuggestions(false);
-    }
-  };
-
-  const selectCustomer = (c: Customer) => {
-    setForm(f => ({
-      ...f,
-      customer_name: c.customer_name,
-      customer_phone: c.customer_phone,
-      address: c.address,
-    }));
-    setShowSuggestions(false);
-  };
 
   const crewRate = form.material === 'pena' ? settings.rate_pena : settings.rate_polimochevina;
   const volume = parseFloat(form.planned_volume_m2) || 0;
   const price = parseFloat(form.price_per_m2) || 0;
-  const totalAmount = isManual ? (parseFloat(manualTotal) || 0) : volume * price;
-  const crewSalary = isManual ? (parseFloat(manualSalary) || 0) : volume * crewRate;
+  const totalAmount = volume * price;
+  const crewSalary = volume * crewRate;
 
   const handlePhoneChange = (val: string) => {
     let digits = val.replace(/\D/g, '');
@@ -148,31 +103,15 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             />
           </div>
 
-          <div ref={nameRef} className="relative">
+          <div>
             <label className="text-xs text-muted-foreground block mb-1.5">ФИО клиента</label>
             <input
               type="text"
               value={form.customer_name}
-              onChange={(e) => { handleNameChange(e.target.value); setError(''); }}
-              onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
+              onChange={(e) => { setForm(f => ({ ...f, customer_name: e.target.value })); setError(''); }}
               placeholder="Иванов Иван Иванович"
               className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm focus:outline-none focus:border-neon transition-colors"
             />
-            {showSuggestions && (
-              <div className="absolute z-50 w-full mt-1 bg-[#1a1a1a] border border-white/10 rounded-xl overflow-hidden shadow-xl">
-                {suggestions.map((c, i) => (
-                  <button
-                    key={i}
-                    type="button"
-                    onMouseDown={() => selectCustomer(c)}
-                    className="w-full px-4 py-3 text-left hover:bg-white/8 transition-colors border-b border-white/5 last:border-0"
-                  >
-                    <div className="text-sm font-medium">{c.customer_name}</div>
-                    <div className="text-xs text-muted-foreground">{c.customer_phone} · {c.address}</div>
-                  </button>
-                ))}
-              </div>
-            )}
           </div>
 
           <div>
@@ -250,63 +189,18 @@ export default function OrderForm({ order, defaultDate, settings, onSave, onCanc
             </div>
           </div>
 
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <span className="text-xs text-muted-foreground">Стоимость и зарплата</span>
-              <button
-                type="button"
-                onClick={() => {
-                  setIsManual(m => !m);
-                  if (!isManual) {
-                    setManualTotal((volume * price).toString());
-                    setManualSalary((volume * crewRate).toString());
-                  }
-                }}
-                className={`text-xs px-3 py-1 rounded-lg transition-colors ${isManual ? 'bg-neon/20 text-neon' : 'bg-white/5 text-muted-foreground hover:bg-white/10'}`}
-              >
-                {isManual ? 'Вручную' : 'Авто'}
-              </button>
+          <div className="grid grid-cols-2 gap-2">
+            <div className="p-3 rounded-xl bg-white/5">
+              <div className="text-xs text-muted-foreground mb-1">Итого</div>
+              <div className="text-base font-bold neon-text">
+                {totalAmount > 0 ? totalAmount.toLocaleString('ru-RU') + ' ₽' : '—'}
+              </div>
             </div>
-            <div className="grid grid-cols-2 gap-2">
-              {isManual ? (
-                <>
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1.5">Итого, ₽</label>
-                    <input
-                      type="number"
-                      value={manualTotal}
-                      onChange={(e) => setManualTotal(e.target.value)}
-                      placeholder="0"
-                      className="w-full bg-white/5 border border-neon/30 rounded-xl px-4 py-3 text-sm font-bold neon-text focus:outline-none focus:border-neon transition-colors"
-                    />
-                  </div>
-                  <div>
-                    <label className="text-xs text-muted-foreground block mb-1.5">Зарплата, ₽</label>
-                    <input
-                      type="number"
-                      value={manualSalary}
-                      onChange={(e) => setManualSalary(e.target.value)}
-                      placeholder="0"
-                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-sm font-bold focus:outline-none focus:border-neon transition-colors"
-                    />
-                  </div>
-                </>
-              ) : (
-                <>
-                  <div className="p-3 rounded-xl bg-white/5">
-                    <div className="text-xs text-muted-foreground mb-1">Итого</div>
-                    <div className="text-base font-bold neon-text">
-                      {totalAmount > 0 ? totalAmount.toLocaleString('ru-RU') + ' ₽' : '—'}
-                    </div>
-                  </div>
-                  <div className="p-3 rounded-xl bg-white/5">
-                    <div className="text-xs text-muted-foreground mb-1">Зарплата бригады</div>
-                    <div className="text-base font-semibold">
-                      {crewSalary > 0 ? crewSalary.toLocaleString('ru-RU') + ' ₽' : '—'}
-                    </div>
-                  </div>
-                </>
-              )}
+            <div className="p-3 rounded-xl bg-white/5">
+              <div className="text-xs text-muted-foreground mb-1">Зарплата бригады</div>
+              <div className="text-base font-semibold">
+                {crewSalary > 0 ? crewSalary.toLocaleString('ru-RU') + ' ₽' : '—'}
+              </div>
             </div>
           </div>
 

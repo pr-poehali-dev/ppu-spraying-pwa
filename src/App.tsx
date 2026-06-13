@@ -1,25 +1,27 @@
 import { useState, useCallback, useEffect } from 'react';
-import { Order, Settings, DEFAULT_SETTINGS, User } from '@/data/mockData';
+import { Order, Settings, DEFAULT_SETTINGS } from '@/data/mockData';
 import {
   apiGetOrders, apiCreateOrder, apiUpdateOrder, apiDeleteOrder,
-  apiGetSettings, apiSaveSettings, apiMe, apiLogout, getToken, clearToken
+  apiGetSettings, apiSaveSettings
 } from '@/api/client';
 import CalendarView from '@/components/CalendarView';
 import JournalView from '@/components/JournalView';
 import DashboardView from '@/components/DashboardView';
 import SettingsView from '@/components/SettingsView';
-import UsersView from '@/components/UsersView';
 import OrderModal from '@/components/OrderModal';
 import OrderForm from '@/components/OrderForm';
-import LoginScreen from '@/components/LoginScreen';
 import Icon from '@/components/ui/icon';
 
-type Tab = 'calendar' | 'journal' | 'dashboard' | 'settings' | 'users';
+type Tab = 'calendar' | 'journal' | 'dashboard' | 'settings';
+
+const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
+  { id: 'calendar', label: 'Календарь', icon: 'CalendarDays' },
+  { id: 'journal', label: 'Журнал', icon: 'BookOpen' },
+  { id: 'dashboard', label: 'Дашборд', icon: 'BarChart2' },
+  { id: 'settings', label: 'Настройки', icon: 'Settings' },
+];
 
 export default function App() {
-  const [user, setUser] = useState<User | null>(null);
-  const [authChecked, setAuthChecked] = useState(false);
-
   const [tab, setTab] = useState<Tab>('calendar');
   const [orders, setOrders] = useState<Order[]>([]);
   const [settings, setSettings] = useState<Settings>(DEFAULT_SETTINGS);
@@ -31,46 +33,28 @@ export default function App() {
   const [editOrder, setEditOrder] = useState<Order | null>(null);
   const [formDate, setFormDate] = useState('');
 
-  // Проверка сессии при старте
+  // Загрузка данных при старте
   useEffect(() => {
-    const token = getToken();
-    if (!token) { setAuthChecked(true); return; }
-    apiMe()
-      .then(({ user: u }) => setUser(u))
-      .catch(() => clearToken())
-      .finally(() => setAuthChecked(true));
-  }, []);
-
-  // Загрузка данных после авторизации
-  useEffect(() => {
-    if (!user) return;
-    setLoading(true);
     Promise.all([apiGetOrders(), apiGetSettings()])
-      .then(([ords, sets]) => { setOrders(ords); setSettings(sets); })
+      .then(([ords, sets]) => {
+        setOrders(ords);
+        setSettings(sets);
+      })
       .catch(console.error)
       .finally(() => setLoading(false));
-  }, [user]);
-
-  const handleRefresh = useCallback(async () => {
-    if (syncing) return;
-    setSyncing(true);
-    try {
-      const ords = await apiGetOrders();
-      setOrders(ords);
-    } catch (e) { console.error(e); }
-    finally { setSyncing(false); }
-  }, [syncing]);
-
-  const handleLogin = useCallback((u: User) => setUser(u), []);
-
-  const handleLogout = useCallback(async () => {
-    await apiLogout();
-    setUser(null);
-    setOrders([]);
-    setTab('calendar');
   }, []);
 
-  const handleCardClick = useCallback((order: Order) => setSelectedOrder(order), []);
+  // Polling каждые 15 сек
+  useEffect(() => {
+    const interval = setInterval(() => {
+      apiGetOrders().then(setOrders).catch(() => {});
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleCardClick = useCallback((order: Order) => {
+    setSelectedOrder(order);
+  }, []);
 
   const handleAddOrder = useCallback((date: string) => {
     setFormDate(date);
@@ -83,7 +67,7 @@ export default function App() {
     setShowForm(true);
   }, []);
 
-  const handleComplete = useCallback(async (orderId: string, actualVolume: number, total?: number, salary?: number) => {
+  const handleComplete = useCallback(async (orderId: string, actualVolume: number) => {
     const order = orders.find(o => o.id === orderId);
     if (!order) return;
     setSyncing(true);
@@ -92,8 +76,6 @@ export default function App() {
         ...order,
         status: 'completed',
         actual_volume_m2: actualVolume,
-        ...(total !== undefined && { total_amount: total }),
-        ...(salary !== undefined && { crew_salary: salary }),
       });
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
       setSelectedOrder(null);
@@ -108,7 +90,7 @@ export default function App() {
         const updated = await apiUpdateOrder(editOrder.id, data);
         setOrders(prev => prev.map(o => o.id === editOrder.id ? updated : o));
       } else {
-        const created = await apiCreateOrder({ ...data, created_by: user?.id || '' });
+        const created = await apiCreateOrder({ ...data, created_by: '' });
         setOrders(prev => [created, ...prev]);
       }
       setShowForm(false);
@@ -120,17 +102,25 @@ export default function App() {
     } finally {
       setSyncing(false);
     }
-  }, [editOrder, user]);
+  }, [editOrder]);
 
   const handleReopenOrder = useCallback(async (orderId: string) => {
+    const order = orders.find(o => o.id === orderId);
+    if (!order) return;
     setSyncing(true);
     try {
-      const updated = await apiUpdateOrder(orderId, { _reopen: true } as never);
+      const updated = await apiUpdateOrder(orderId, {
+        status: 'planned',
+        date: order.date, customer_name: order.customer_name,
+        customer_phone: order.customer_phone, address: order.address,
+        planned_volume_m2: order.planned_volume_m2, material: order.material,
+        price_per_m2: order.price_per_m2, crew_rate: order.crew_rate,
+      });
       setOrders(prev => prev.map(o => o.id === orderId ? updated : o));
       setSelectedOrder(updated);
     } catch (e) { console.error(e); }
     finally { setSyncing(false); }
-  }, []);
+  }, [orders]);
 
   const handleDeleteOrder = useCallback(async (orderId: string) => {
     if (!window.confirm('Удалить заказ? Это действие нельзя отменить.')) return;
@@ -153,31 +143,6 @@ export default function App() {
     try { await apiSaveSettings(s); } catch (e) { console.error(e); }
   }, []);
 
-  // Пока проверяем сессию
-  if (!authChecked) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 rounded-full border-2 border-neon border-t-transparent animate-spin" />
-      </div>
-    );
-  }
-
-  // Экран входа
-  if (!user) {
-    return <LoginScreen onLogin={handleLogin} />;
-  }
-
-  const role = user.role === 'foreman' ? 'foreman' : 'manager';
-  const isAdmin = user.role === 'admin';
-
-  const NAV_ITEMS: { id: Tab; label: string; icon: string }[] = [
-    { id: 'calendar', label: 'Календарь', icon: 'CalendarDays' },
-    { id: 'journal', label: 'Журнал', icon: 'BookOpen' },
-    { id: 'dashboard', label: 'Дашборд', icon: 'BarChart2' },
-    { id: 'settings', label: 'Настройки', icon: 'Settings' },
-    ...(isAdmin ? [{ id: 'users' as Tab, label: 'Команда', icon: 'Users' }] : []),
-  ];
-
   return (
     <div className="min-h-screen bg-background flex flex-col font-golos" translate="no">
       {/* Header */}
@@ -189,26 +154,9 @@ export default function App() {
               ППУ <span className="neon-text">CRM</span>
             </span>
           </div>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={handleRefresh}
-              disabled={syncing}
-              className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors disabled:opacity-40"
-              title="Обновить заказы"
-            >
-              <Icon name="RefreshCw" size={13} className={syncing ? 'animate-spin' : ''} />
-            </button>
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground">{user.name}</span>
-              <button
-                onClick={handleLogout}
-                className="w-7 h-7 rounded-full bg-white/10 flex items-center justify-center hover:bg-white/20 transition-colors"
-                title="Выйти"
-              >
-                <Icon name="LogOut" size={13} />
-              </button>
-            </div>
-          </div>
+          {syncing && (
+            <div className="w-1.5 h-1.5 rounded-full bg-neon animate-pulse" />
+          )}
         </div>
       </div>
 
@@ -225,10 +173,10 @@ export default function App() {
       {/* Main content */}
       <div className="flex-1 relative overflow-hidden" style={{ minHeight: 'calc(100vh - 112px)' }}>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'calendar' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <CalendarView orders={orders} role={role} onCardClick={handleCardClick} onAddOrder={handleAddOrder} />
+          <CalendarView orders={orders} role="manager" onCardClick={handleCardClick} onAddOrder={handleAddOrder} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'journal' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-          <JournalView orders={orders} role={role} onOrderClick={handleCardClick} />
+          <JournalView orders={orders} role="manager" onOrderClick={handleCardClick} />
         </div>
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'dashboard' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
           <DashboardView orders={orders} />
@@ -236,21 +184,16 @@ export default function App() {
         <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'settings' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
           <SettingsView settings={settings} onSaveSettings={handleSaveSettings} />
         </div>
-        {isAdmin && (
-          <div className={`absolute inset-0 transition-opacity duration-200 ${tab === 'users' ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'}`}>
-            <UsersView />
-          </div>
-        )}
       </div>
 
       {/* FAB */}
-      {tab === 'calendar' && role === 'manager' && (
+      {tab === 'calendar' && (
         <button
           onClick={() => handleAddOrder(new Date().toISOString().split('T')[0])}
           className="fixed right-5 bottom-24 z-40 w-14 h-14 rounded-2xl neon-bg shadow-lg hover-scale transition-all flex items-center justify-center"
           style={{ boxShadow: '0 4px 24px rgba(57,232,124,0.35)' }}
         >
-          <Icon name="Plus" size={24} className="text-black" />
+          <Icon name="Plus" size={24} />
         </button>
       )}
 
@@ -269,37 +212,38 @@ export default function App() {
               >
                 <div className={`relative transition-transform duration-200 ${isActive ? 'scale-110' : ''}`}>
                   {isActive && <div className="absolute inset-0 -m-1 rounded-lg bg-neon/10" />}
-                  <Icon name={item.icon} size={20} />
+                  <Icon name={item.icon as Parameters<typeof Icon>[0]['name']} size={20} />
                 </div>
-                <span className="text-[10px] font-medium">{item.label}</span>
+                <span className={`text-[10px] font-medium transition-all ${isActive ? 'neon-text' : ''}`}>
+                  {item.label}
+                </span>
               </button>
             );
           })}
         </div>
+        <div style={{ height: 'env(safe-area-inset-bottom, 0px)' }} />
       </div>
 
-      {/* Order Modal */}
+      {/* Modals */}
       {selectedOrder && (
         <OrderModal
           order={selectedOrder}
-          role={role}
+          role="manager"
           onClose={() => setSelectedOrder(null)}
           onComplete={handleComplete}
-          onEdit={role === 'manager' ? handleEditOrder : undefined}
-          onDelete={role === 'manager' ? handleDeleteOrder : undefined}
-          onReopen={role === 'manager' ? handleReopenOrder : undefined}
+          onEdit={handleEditOrder}
+          onDelete={handleDeleteOrder}
+          onReopen={handleReopenOrder}
           onPhotosChange={handlePhotosChange}
         />
       )}
-
-      {/* Order Form */}
       {showForm && (
         <OrderForm
           order={editOrder}
           defaultDate={formDate}
           settings={settings}
           onSave={handleSaveOrder}
-          onClose={() => { setShowForm(false); setEditOrder(null); }}
+          onCancel={() => { setShowForm(false); setEditOrder(null); }}
         />
       )}
     </div>

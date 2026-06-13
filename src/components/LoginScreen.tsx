@@ -1,23 +1,24 @@
 import { useState } from 'react';
-import { apiLogin, setToken } from '@/api/client';
-import { User } from '@/data/mockData';
-import Icon from '@/components/ui/icon';
 
 interface LoginScreenProps {
-  onLogin: (user: User) => void;
+  onLogin: (phone: string, password: string) => Promise<string | null>;
 }
 
+const DEMO_USERS = [
+  { name: 'Алексей Петров', phone: '+79001234567', role: 'manager' as const },
+  { name: 'Иван Смирнов', phone: '+79007654321', role: 'foreman' as const },
+];
+
 export default function LoginScreen({ onLogin }: LoginScreenProps) {
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+7 (');
   const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   const handlePhoneChange = (val: string) => {
     let digits = val.replace(/\D/g, '');
     if (digits.startsWith('8')) digits = '7' + digits.slice(1);
-    if (!digits.startsWith('7') && digits.length > 0) digits = '7' + digits;
+    if (!digits.startsWith('7')) digits = '7' + digits;
     digits = digits.slice(0, 11);
     let formatted = '+7';
     if (digits.length > 1) formatted += ' (' + digits.slice(1, 4);
@@ -25,27 +26,19 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
     if (digits.length > 7) formatted += '-' + digits.slice(7, 9);
     if (digits.length > 9) formatted += '-' + digits.slice(9, 11);
     setPhone(formatted);
-    setError('');
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!phone || !password) return;
-    setError('');
+  const handleLogin = async () => {
+    if (loading) return;
     setLoading(true);
-    try {
-      const { user, token } = await apiLogin(phone, password);
-      setToken(token);
-      onLogin(user);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Ошибка входа');
-    } finally {
-      setLoading(false);
-    }
+    setError('');
+    const err = await onLogin(phone, password);
+    if (err) setError(err);
+    setLoading(false);
   };
 
   return (
-    <div className="min-h-screen bg-background flex flex-col items-center justify-center px-6 relative overflow-hidden" translate="no">
+    <div className="min-h-screen flex flex-col items-center justify-center px-6 bg-background relative overflow-hidden" translate="no">
       <div className="absolute top-1/4 left-1/2 -translate-x-1/2 w-72 h-72 rounded-full bg-neon/5 blur-[80px] pointer-events-none" />
       <div className="absolute bottom-1/4 left-1/4 w-48 h-48 rounded-full bg-blue-500/5 blur-[60px] pointer-events-none" />
 
@@ -58,58 +51,61 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           <p className="text-muted-foreground text-sm mt-1">Управление заказами на напыление</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <div className="space-y-3">
           <div>
             <label className="text-xs text-muted-foreground block mb-1.5">Номер телефона</label>
             <input
               type="tel"
               value={phone}
               onChange={(e) => handlePhoneChange(e.target.value)}
-              placeholder="+7 (999) 999-99-99"
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-neon transition-colors"
-              autoComplete="tel"
+              placeholder="+7 (999) 999-99-99"
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1.5">Пароль</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => { setPassword(e.target.value); setError(''); }}
+              onKeyDown={(e) => e.key === 'Enter' && handleLogin()}
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-sm focus:outline-none focus:border-neon transition-colors"
+              placeholder="••••••"
             />
           </div>
 
-          <div>
-            <label className="text-xs text-muted-foreground block mb-1.5">Пароль</label>
-            <div className="relative">
-              <input
-                type={showPassword ? 'text' : 'password'}
-                value={password}
-                onChange={(e) => { setPassword(e.target.value); setError(''); }}
-                placeholder="••••••"
-                className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 pr-12 py-3.5 text-sm focus:outline-none focus:border-neon transition-colors"
-                autoComplete="current-password"
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(v => !v)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-white transition-colors"
-              >
-                <Icon name={showPassword ? 'EyeOff' : 'Eye'} size={16} />
-              </button>
-            </div>
-          </div>
-
           {error && (
-            <div className="flex items-center gap-2 p-3 rounded-xl bg-red-500/10 border border-red-500/20 animate-fade-in">
-              <Icon name="AlertCircle" size={14} className="text-red-400 shrink-0" />
-              <p className="text-xs text-red-400">{error}</p>
-            </div>
+            <div className="text-xs text-red-400 px-1 animate-fade-in">{error}</div>
           )}
 
           <button
-            type="submit"
-            disabled={loading || !phone || !password}
+            onClick={handleLogin}
+            disabled={loading}
             className="w-full neon-bg rounded-2xl py-4 text-sm font-bold mt-2 hover-scale transition-all disabled:opacity-60 flex items-center justify-center gap-2"
           >
-            {loading
-              ? <><div className="w-4 h-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />Вход...</>
-              : 'Войти'
-            }
+            {loading ? (
+              <div className="w-4 h-4 rounded-full border-2 border-black/40 border-t-transparent animate-spin" />
+            ) : 'Войти'}
           </button>
-        </form>
+        </div>
+
+        <div className="mt-6 p-4 rounded-2xl bg-white/3 border border-white/6">
+          <p className="text-xs text-muted-foreground mb-2 font-medium">Демо-аккаунты (пароль: 1234):</p>
+          <div className="space-y-1.5">
+            {DEMO_USERS.map(u => (
+              <button
+                key={u.phone}
+                onClick={() => { setPhone(u.phone); setPassword('1234'); setError(''); }}
+                className="w-full flex items-center justify-between px-3 py-2 rounded-xl hover:bg-white/5 transition-colors text-left"
+              >
+                <span className="text-xs text-foreground">{u.name}</span>
+                <span className={`text-xs font-medium ${u.role === 'manager' ? 'neon-text' : 'text-blue-400'}`}>
+                  {u.role === 'manager' ? 'Менеджер' : 'Бригадир'}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
     </div>
   );
